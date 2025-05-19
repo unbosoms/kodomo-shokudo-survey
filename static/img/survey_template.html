@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>こども食堂アンケート用紙テンプレート</title>
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+            body {
+                margin: 0;
+            }
+        }
+        
+        body {
+            font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        
+        .page {
+            width: 297mm;
+            height: 210mm;
+            background-color: white;
+            margin: 0 auto;
+            box-sizing: border-box;
+            padding: 10mm;
+            position: relative;
+            page-break-after: always;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 10mm;
+        }
+        
+        .title {
+            font-size: 24pt;
+            font-weight: bold;
+            margin-bottom: 5mm;
+        }
+        
+        .subtitle {
+            font-size: 16pt;
+            margin-bottom: 5mm;
+        }
+        
+        .question {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10mm;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 5mm;
+            height: 130mm;
+        }
+        
+        .quadrant {
+            border: 2px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16pt;
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        
+        .legend {
+            margin-top: 10mm;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .color {
+            display: flex;
+            align-items: center;
+        }
+        
+        .circle {
+            width: 15mm;
+            height: 15mm;
+            border-radius: 50%;
+            margin-right: 3mm;
+        }
+        
+        .red { background-color: #ff6b6b; }
+        .green { background-color: #51cf66; }
+        .blue { background-color: #339af0; }
+        .yellow { background-color: #fcc419; }
+        
+        .instructions {
+            position: absolute;
+            bottom: 5mm;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        @media screen {
+            body {
+                padding: 20px;
+            }
+            
+            .page {
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                margin: 20px auto;
+            }
+            
+            .print-button {
+                display: block;
+                margin: 20px auto;
+                padding: 10px 20px;
+                background-color: #00b900;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+            }
+            
+            .print-button:hover {
+                background-color: #009900;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div class="title">こども食堂アンケート</div>
+            <div class="subtitle">〇〇こども食堂</div>
+        </div>
+        
+        <div class="question">きょうはなにがたのしかった？</div>
+        
+        <div class="grid">
+            <div class="quadrant">ごはん</div>
+            <div class="quadrant">あそび</div>
+            <div class="quadrant">おしゃべり</div>
+            <div class="quadrant">べんきょう</div>
+        </div>
+        
+        <div class="legend">
+            <div class="color">
+                <div class="circle red"></div>
+                <div>未就学児</div>
+            </div>
+            <div class="color">
+                <div class="circle green"></div>
+                <div>小学生</div>
+            </div>
+            <div class="color">
+                <div class="circle blue"></div>
+                <div>中高生</div>
+            </div>
+            <div class="color">
+                <div class="circle yellow"></div>
+                <div>大人</div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            たのしかったところに、あなたの色のシールをはってください。
+        </div>
+    </div>
+    
+    <button class="print-button" onclick="window.print()">印刷する</button>
+    
+    <script>
+        // 印刷時に自動的に印刷ダイアログを表示
+        document.addEventListener('DOMContentLoaded', function() {
+            // URLパラメータに 'print=true' がある場合は自動的に印刷ダイアログを表示
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('print') === 'true') {
+                window.print();
+            }
+        });
+    </script>
+</body>
+</html>
