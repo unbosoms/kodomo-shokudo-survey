@@ -125,69 +125,47 @@ def upload_image():
 
 @app.route('/api/check-user', methods=['POST'])
 def check_user():
-    """Check user registration status"""
+    """Check if user is registered"""
     data = request.json
-    user_id = data.get('userId')
-    display_name = data.get('displayName')
     
-    if not user_id:
+    if not data or 'userId' not in data:
         return jsonify({'success': False, 'error': 'Missing userId'}), 400
-    
-    # Check if user is admin (based on ADMIN_USERS in .env file)
-    # Format in .env: ADMIN_USERS=user_id1,user_id2,user_id3
-    admin_users_str = os.getenv('ADMIN_USERS', '')
-    logger.info(f"Raw ADMIN_USERS from env: '{admin_users_str}'")
-    
-    # Split and clean up admin users list
-    admin_users = [u.strip() for u in admin_users_str.split(',') if u.strip()]
-    logger.info(f"Processed admin users list: {admin_users}")
-    
-    # Check if user is in admin list
-    is_admin = user_id in admin_users
-    logger.info(f"Checking user '{user_id}' (admin: {is_admin})")
-    
-    # Additional debug for exact comparison
-    for admin_id in admin_users:
-        logger.info(f"Comparing: '{user_id}' == '{admin_id}' : {user_id == admin_id}")
-    
-    # If user is admin, we don't need to check registration
-    if is_admin:
-        logger.info(f"User {user_id} is an admin")
+
+    user_id = data['userId']
+    app.logger.info(f"Checking user registration for user ID: {user_id}")
+
+    try:
+        user_info = sheets_service.get_user_info(user_id)
+        
+        if user_info:
+            app.logger.info(f"User found: {user_info}")
+            shokudo = sheets_service.get_shokudo_info(user_info['shokudo_id'])
+            return jsonify({
+                'success': True,
+                'isRegistered': True,
+                'user': user_info,
+                'shokudo': shokudo
+            })
+        else:
+            app.logger.info(f"User not found: {user_id}")
+            return jsonify({
+                'success': True,
+                'isRegistered': False
+            })
+
+    except ConnectionResetError as e:
+        app.logger.error(f"Connection error while checking user: {e}")
         return jsonify({
-            'success': True,
-            'isRegistered': True,
-            'isAdmin': True,
-            'user': {
-                'user_id': user_id,
-                'display_name': display_name,
-                'shokudo_id': 'admin'  # Placeholder
-            },
-            'shokudo': {
-                'shokudo_id': 'admin',
-                'shokudo_name': 'Admin'
-            }
-        })
-    
-    # Check if user is registered
-    user_info = sheets_service.get_user_info(user_id)
-    
-    if user_info:
-        # User is registered
-        shokudo_info = sheets_service.get_shokudo_info(user_info['shokudo_id'])
+            'success': False,
+            'error': 'Google Sheets接続エラー。しばらく待ってから再試行してください。'
+        }), 503
+
+    except Exception as e:
+        app.logger.error(f"Error checking user: {e}")
         return jsonify({
-            'success': True,
-            'isRegistered': True,
-            'isAdmin': False,
-            'user': user_info,
-            'shokudo': shokudo_info
-        })
-    else:
-        # User is not registered
-        return jsonify({
-            'success': True,
-            'isRegistered': False,
-            'isAdmin': False
-        })
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/register-user', methods=['POST'])
 def register_user():
@@ -224,36 +202,60 @@ def register_shokudo():
 def update_quadrant():
     """Update quadrant settings"""
     data = request.json
-    shokudo_id = data.get('shokudoId')
-    question = data.get('question')
-    quadrant_ul = data.get('quadrantUL')
-    quadrant_ur = data.get('quadrantUR')
-    quadrant_ll = data.get('quadrantLL')
-    quadrant_lr = data.get('quadrantLR')
+    app.logger.info(f"Received quadrant update request: {data}")  # デバッグログ追加
     
-    if not shokudo_id or not question or not quadrant_ul or not quadrant_ur or not quadrant_ll or not quadrant_lr:
-        return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+    required_fields = ['shokudo_id', 'question', 'quadrant_ul', 'quadrant_ur', 'quadrant_ll', 'quadrant_lr']
     
-    success = sheets_service.update_quadrant(shokudo_id, question, quadrant_ul, quadrant_ur, quadrant_ll, quadrant_lr)
-    
-    return jsonify({'success': success})
+    # バリデーションチェック
+    if not all(field in data for field in required_fields):
+        missing_fields = [field for field in required_fields if field not in data]
+        error_msg = f"Missing required fields: {', '.join(missing_fields)}"
+        app.logger.error(error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 400
+
+    try:
+        shokudo_id = data['shokudo_id']
+        question = data['question']
+        quadrant_ul = data['quadrant_ul']
+        quadrant_ur = data['quadrant_ur']
+        quadrant_ll = data['quadrant_ll']
+        quadrant_lr = data['quadrant_lr']
+        
+        success = sheets_service.update_quadrant(shokudo_id, question, quadrant_ul, quadrant_ur, quadrant_ll, quadrant_lr)
+        
+        return jsonify({'success': success})
+    except Exception as e:
+        app.logger.error(f"Error updating quadrant settings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/update-color', methods=['POST'])
 def update_color():
     """Update color settings"""
     data = request.json
-    shokudo_id = data.get('shokudoId')
-    red = data.get('red')
-    green = data.get('green')
-    blue = data.get('blue')
-    yellow = data.get('yellow')
+    app.logger.info(f"Received color update request: {data}")  # デバッグログ追加
     
-    if not shokudo_id or not red or not green or not blue or not yellow:
-        return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+    required_fields = ['shokudoId', 'red', 'green', 'blue', 'yellow']
     
-    success = sheets_service.update_color(shokudo_id, red, green, blue, yellow)
-    
-    return jsonify({'success': success})
+    # バリデーションチェック
+    if not all(field in data for field in required_fields):
+        missing_fields = [field for field in required_fields if field not in data]
+        error_msg = f"Missing required fields: {', '.join(missing_fields)}"
+        app.logger.error(error_msg)
+        return jsonify({'success': False, 'error': error_msg}), 400
+
+    try:
+        shokudo_id = data['shokudoId']
+        success = sheets_service.update_color(
+            shokudo_id,
+            data['red'],
+            data['green'],
+            data['blue'],
+            data['yellow']
+        )
+        return jsonify({'success': success})
+    except Exception as e:
+        app.logger.error(f"Error updating color settings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/get-shokudos', methods=['GET'])
 def get_shokudos():
@@ -267,17 +269,33 @@ def get_settings():
     """Get settings for a children's cafeteria"""
     shokudo_id = request.args.get('shokudoId')
     
+    app.logger.info(f"Getting settings for shokudo_id: {shokudo_id}")  # 追加
+    
     if not shokudo_id:
+        app.logger.error("Missing shokudoId parameter")  # 追加
         return jsonify({'success': False, 'error': 'Missing shokudoId'}), 400
     
-    quadrant_settings = sheets_service.get_quadrant_settings(shokudo_id)
-    color_settings = sheets_service.get_color_settings(shokudo_id)
-    
-    return jsonify({
-        'success': True,
-        'quadrant': quadrant_settings,
-        'color': color_settings
-    })
+    try:
+        quadrant_settings = sheets_service.get_quadrant_settings(shokudo_id)
+        app.logger.info(f"Retrieved quadrant settings: {quadrant_settings}")  # 追加
+        
+        color_settings = sheets_service.get_color_settings(shokudo_id)
+        app.logger.info(f"Retrieved color settings: {color_settings}")  # 追加
+        
+        response_data = {
+            'success': True,
+            'quadrant': quadrant_settings,
+            'color': color_settings
+        }
+        app.logger.info(f"Sending response: {response_data}")  # 追加
+        
+        return jsonify(response_data)
+    except Exception as e:
+        app.logger.error(f"Error getting settings: {e}")  # 追加
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get settings: {str(e)}'
+        }), 500
 
 @app.route('/api/guide-overlay', methods=['GET'])
 def guide_overlay():

@@ -3,20 +3,56 @@ from google.oauth2 import service_account
 import os
 import datetime
 import uuid
+import logging
+import json
+import base64
 
 class SheetsService:
     def __init__(self):
         """Initialize Google Sheets API client"""
-        credentials = service_account.Credentials.from_service_account_file(
-            os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE'),
-            scopes=['https://www.googleapis.com/auth/spreadsheets']
-        )
+        credentials = self._get_credentials()
         self.service = build('sheets', 'v4', credentials=credentials)
         self.spreadsheet_id = os.getenv('SPREADSHEET_ID')
-    
+        
+        # シート名の定数を追加
+        self.sheet_names = {
+            'shokudo': 'master_shokudo',
+            'user': 'master_user',
+            'quadrant': 'master_quadrant',
+            'color': 'master_color',
+            'data': 'data',
+            'color_master': 'master_color_list'  # 新しい色マスターシート
+        }
+
+    def _get_credentials(self):
+        """Get Google credentials from environment variable"""
+        try:
+            # まずBase64エンコードされた認証情報を試す
+            credentials_base64 = os.getenv('GOOGLE_CREDENTIALS_BASE64')
+            if credentials_base64:
+                credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
+                credentials_info = json.loads(credentials_json)
+                return service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets']
+                )
+
+            # バックアップとしてファイルパスを試す（ローカル開発用）
+            credentials_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+            if credentials_file and os.path.exists(credentials_file):
+                return service_account.Credentials.from_service_account_file(
+                    credentials_file,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets']
+                )
+
+            raise ValueError("No valid Google credentials found")
+        except Exception as e:
+            logging.error(f"Error loading credentials: {e}")
+            raise
+
     def get_all_shokudos(self):
         """Get all children's cafeterias"""
-        range_name = 'master_shokudo!A:B'
+        range_name = f'{self.sheet_names["shokudo"]}!A:B'
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.spreadsheet_id,
             range=range_name
@@ -37,7 +73,7 @@ class SheetsService:
     
     def get_shokudo_info(self, shokudo_id):
         """Get information for a specific children's cafeteria"""
-        range_name = 'master_shokudo!A:B'
+        range_name = f'{self.sheet_names["shokudo"]}!A:B'
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.spreadsheet_id,
             range=range_name
@@ -55,7 +91,7 @@ class SheetsService:
     
     def get_user_info(self, user_id):
         """Get user information"""
-        range_name = 'master_user!A:C'
+        range_name = f'{self.sheet_names["user"]}!A:C'
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.spreadsheet_id,
             range=range_name
@@ -74,7 +110,7 @@ class SheetsService:
     
     def get_quadrant_settings(self, shokudo_id):
         """Get quadrant settings for a children's cafeteria"""
-        range_name = 'master_quadrant!A:F'
+        range_name = f'{self.sheet_names["quadrant"]}!A:F'
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.spreadsheet_id,
             range=range_name
@@ -94,26 +130,70 @@ class SheetsService:
         
         return None
     
+    # 新しいメソッドを追加
+    def get_color_master(self):
+        """Get master color settings"""
+        range_name = f'{self.sheet_names["color_master"]}!A:C'  # A:コード, B:表示名, C:カラーコード
+        try:
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            values = result.get('values', [])
+            colors = {}
+            
+            # Skip header row
+            for row in values[1:]:
+                if len(row) >= 3:
+                    colors[row[0]] = {
+                        'name': row[1],
+                        'code': row[2]
+                    }
+            
+            return colors
+        except Exception as e:
+            logging.error(f"Error getting color master: {e}")
+            return {
+                'red': {'name': '赤', 'code': '#dc3545'},
+                'green': {'name': '緑', 'code': '#198754'},
+                'blue': {'name': '青', 'code': '#0d6efd'},
+                'yellow': {'name': '黄', 'code': '#ffc107'}
+            }  # フォールバック値
+
     def get_color_settings(self, shokudo_id):
         """Get color settings for a children's cafeteria"""
-        range_name = 'master_color!A:E'
+        range_name = f'{self.sheet_names["color"]}!A:E'
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.spreadsheet_id,
             range=range_name
         ).execute()
         
         values = result.get('values', [])
+        color_master = self.get_color_master()
+        
         for row in values[1:]:  # Skip header
             if len(row) >= 1 and row[0] == shokudo_id:
-                return {
+                settings = {
                     'shokudo_id': row[0],
-                    'red': row[1] if len(row) >= 2 else '',
-                    'green': row[2] if len(row) >= 3 else '',
-                    'blue': row[3] if len(row) >= 4 else '',
-                    'yellow': row[4] if len(row) >= 5 else ''
+                    'color_red': row[1] if len(row) >= 2 else '',
+                    'color_green': row[2] if len(row) >= 3 else '',
+                    'color_blue': row[3] if len(row) >= 4 else '',
+                    'color_yellow': row[4] if len(row) >= 5 else '',
                 }
+                # カラーマスターの情報を追加
+                settings['colors'] = color_master
+                return settings
         
-        return None
+        # 設定が見つからない場合は空の設定とカラーマスターを返す
+        return {
+            'shokudo_id': shokudo_id,
+            'color_red': '',
+            'color_green': '',
+            'color_blue': '',
+            'color_yellow': '',
+            'colors': color_master
+        }
     
     def register_user(self, user_id, display_name, shokudo_id):
         """Register a new user"""

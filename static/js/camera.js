@@ -27,7 +27,7 @@ function initCamera() {
     // Request camera access
     navigator.mediaDevices.getUserMedia({ 
         video: { 
-            facingMode: 'environment',  // Use back camera if available
+            facingMode: 'environment',
             width: { ideal: 1280 },
             height: { ideal: 720 }
         } 
@@ -36,29 +36,34 @@ function initCamera() {
         stream = s;
         videoElement.srcObject = stream;
         
+        // カメラ起動後のUI更新
+        document.getElementById('start-camera').classList.add('d-none');
+        videoElement.classList.remove('d-none');
+        
+        // ボタンのイベントリスナーを設定
+        const takePhotoButton = document.getElementById('take-photo');
+        const retakePhotoButton = document.getElementById('retake-photo');
+        const uploadPhotoButton = document.getElementById('upload-photo');
+        
+        takePhotoButton.addEventListener('click', takePhoto);
+        retakePhotoButton.addEventListener('click', retakePhoto);
+        uploadPhotoButton.addEventListener('click', uploadPhoto);
+        
         // Play video
         videoElement.play();
         
         // Wait for video to be ready
         videoElement.onloadedmetadata = function() {
             // Show take photo button
-            document.getElementById('take-photo').classList.remove('d-none');
+            takePhotoButton.classList.remove('d-none');
             
             // Load guide overlay
             loadGuideOverlay();
-            
-            // Set up take photo button
-            document.getElementById('take-photo').addEventListener('click', takePhoto);
-            
-            // Set up retake photo button
-            document.getElementById('retake-photo').addEventListener('click', retakePhoto);
-            
-            // Set up upload photo button
-            document.getElementById('upload-photo').addEventListener('click', uploadPhoto);
         };
     })
     .catch(function(error) {
-        showError(`カメラへのアクセスに失敗しました: ${error.message}`);
+        console.error('camera.js: Error starting camera:', error);
+        showError('カメラの起動に失敗しました: ' + error.message);
     });
 }
 
@@ -138,88 +143,87 @@ function drawGuideLines(width, height) {
  * Take photo
  */
 function takePhoto() {
-    if (!videoElement || !canvasElement) {
-        showError('カメラが初期化されていません');
-        return;
-    }
-    
-    // Get video dimensions
-    const width = videoElement.videoWidth;
-    const height = videoElement.videoHeight;
-    
-    // Set canvas dimensions
-    canvasElement.width = width;
-    canvasElement.height = height;
-    
-    // Draw video frame to canvas
+    console.info('camera.js: takePhoto button clicked');
+    // キャンバスの設定
     const context = canvasElement.getContext('2d');
-    context.drawImage(videoElement, 0, 0, width, height);
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
     
-    // Get image data
-    photoData = canvasElement.toDataURL('image/jpeg', 0.9);
+    // 写真を撮影：videoElementの内容をcanvasに描画
+    context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     
-    // Show photo preview
-    videoElement.style.display = 'none';
-    canvasElement.style.display = 'block';
-    guideOverlayElement.style.display = 'none';
+    // UI更新：表示の切り替え
+    videoElement.classList.add('d-none');         // カメラプレビューを非表示
+    guideOverlayElement.classList.add('d-none');  // ガイドを非表示
+    canvasElement.classList.remove('d-none');     // 撮影プレビューを表示
     
-    // Update buttons
-    document.getElementById('take-photo').classList.add('d-none');
-    document.getElementById('retake-photo').classList.remove('d-none');
-    document.getElementById('upload-photo').classList.remove('d-none');
+    // ボタンの表示を切り替え
+    const takePhotoButton = document.getElementById('take-photo');
+    const retakePhotoButton = document.getElementById('retake-photo');
+    const uploadPhotoButton = document.getElementById('upload-photo');
+    
+    takePhotoButton.classList.add('d-none');
+    retakePhotoButton.classList.remove('d-none');
+    uploadPhotoButton.classList.remove('d-none');
+    
+    // 写真データを保存：画質0.8で圧縮
+    photoData = canvasElement.toDataURL('image/jpeg', 0.8);
 }
 
 /**
  * Retake photo
  */
 function retakePhoto() {
-    // Clear photo data
-    photoData = null;
+    // プレビューを非表示にしてビデオを表示
+    canvasElement.classList.add('d-none');
+    videoElement.classList.remove('d-none');
     
-    // Show video preview
-    videoElement.style.display = 'block';
-    canvasElement.style.display = 'none';
-    guideOverlayElement.style.display = 'block';
-    
-    // Update buttons
+    // ボタンの表示を切り替え
     document.getElementById('take-photo').classList.remove('d-none');
     document.getElementById('retake-photo').classList.add('d-none');
     document.getElementById('upload-photo').classList.add('d-none');
+    
+    // 写真データをクリア
+    photoData = null;
 }
 
 /**
  * Upload photo
  */
 function uploadPhoto() {
+    console.info('camera.js: upload button clicked');
     if (!photoData) {
         showError('写真が撮影されていません');
         return;
     }
-    
-    // Show loading spinner
-    document.getElementById('loading').classList.remove('d-none');
-    
-    // Disable buttons
-    document.getElementById('retake-photo').disabled = true;
-    document.getElementById('upload-photo').disabled = true;
-    
-    // Resize image before uploading to reduce file size
+
+    // カメラコンテナ全体を非表示
+    const cameraContainer = document.querySelector('.camera-container');
+    if (cameraContainer) {
+        cameraContainer.classList.add('d-none');
+    }
+
+    // ローディング表示を表示
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">計算中...</div></div>';
+        loading.classList.remove('d-none');
+    }
+
+    // 画像をリサイズ
     resizeImage(photoData, 1280, 720, function(resizedImageData) {
         console.info('Image resized for upload. Original size vs. New size (bytes):', 
                     photoData.length, resizedImageData.length);
         
-        // Create form data
+        // FormDataの作成
         const formData = new FormData();
-        
-        // Convert data URL to blob
         const blob = dataURLtoBlob(resizedImageData);
         
-        // Add to form data
         formData.append('image', blob, 'photo.jpg');
-        formData.append('userId', document.getElementById('userId').value);
-        formData.append('shokudoId', document.getElementById('shokudo-name').dataset.shokudoId || '');
-        
-        // Upload to server with timeout and retry logic
+        formData.append('shokudoId', currentShokudo.shokudo_id);
+        formData.append('userId', currentUser.user_id);
+
+        // アップロード実行
         uploadWithRetry('/api/upload', formData, 3);
     });
 }
@@ -321,70 +325,52 @@ function uploadWithRetry(url, formData, maxRetries, currentRetry = 0) {
  * Show results
  */
 function showResults(counts) {
-    // Get result container
     const resultContainer = document.getElementById('result-container');
     const resultContent = document.getElementById('result-content');
     
+    if (!resultContainer || !resultContent) {
+        console.error('Result container elements not found');
+        return;
+    }
+
     // Clear previous results
     resultContent.innerHTML = '';
     
     // Create result HTML
     let html = '<h5>集計結果</h5>';
     
-    // Get quadrant names and answers
-    const quadrantNames = {
-        'UL': '左上',
-        'UR': '右上',
-        'LL': '左下',
-        'LR': '右下'
+    // Get quadrant texts from the current page
+    const quadrantTexts = {
+        'UL': document.getElementById('quadrant-ul-text')?.textContent || '左上',
+        'UR': document.getElementById('quadrant-ur-text')?.textContent || '右上',
+        'LL': document.getElementById('quadrant-ll-text')?.textContent || '左下',
+        'LR': document.getElementById('quadrant-lr-text')?.textContent || '右下'
     };
     
-    const quadrantAnswers = {
-        'UL': document.getElementById('quadrant-ul').textContent,
-        'UR': document.getElementById('quadrant-ur').textContent,
-        'LL': document.getElementById('quadrant-ll').textContent,
-        'LR': document.getElementById('quadrant-lr').textContent
+    // Get color texts
+    const colorTexts = {
+        'red': document.getElementById('color-red-text')?.textContent || '赤',
+        'green': document.getElementById('color-green-text')?.textContent || '緑',
+        'blue': document.getElementById('color-blue-text')?.textContent || '青',
+        'yellow': document.getElementById('color-yellow-text')?.textContent || '黄'
     };
-    
-    // Get color names and attributes
-    const colorNames = {
-        'red': '赤',
-        'green': '緑',
-        'blue': '青',
-        'yellow': '黄'
-    };
-    
-    const colorAttributes = {
-        'red': document.getElementById('color-red').textContent,
-        'green': document.getElementById('color-green').textContent,
-        'blue': document.getElementById('color-blue').textContent,
-        'yellow': document.getElementById('color-yellow').textContent
-    };
-    
+
     // Create table
     html += '<table class="table table-bordered">';
-    html += '<thead><tr><th>回答</th><th>属性</th><th>数</th></tr></thead>';
+    html += '<thead><tr><th>位置</th><th>回答</th><th>数</th></tr></thead>';
     html += '<tbody>';
     
-    // Add rows for each quadrant and color
+    // Add data rows
     for (const quadrant in counts) {
-        const quadrantName = quadrantNames[quadrant] || quadrant;
-        const answer = quadrantAnswers[quadrant] || '';
-        
         for (const color in counts[quadrant]) {
             const count = counts[quadrant][color];
-            
-            // Skip if count is 0
-            if (count === 0) continue;
-            
-            const colorName = colorNames[color] || color;
-            const attribute = colorAttributes[color] || '';
-            
-            html += `<tr>
-                <td>${answer} (${quadrantName})</td>
-                <td>${attribute} (${colorName})</td>
-                <td>${count}</td>
-            </tr>`;
+            if (count > 0) {
+                html += `<tr>
+                    <td>${quadrantTexts[quadrant]}</td>
+                    <td>${colorTexts[color]}</td>
+                    <td>${count}</td>
+                </tr>`;
+            }
         }
     }
     

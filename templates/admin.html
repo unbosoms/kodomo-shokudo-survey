@@ -11,97 +11,60 @@
 </head>
 <body>
     <div class="container">
+        <!-- Loading spinner -->
         <div id="loading" class="d-flex justify-content-center align-items-center vh-100">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
         </div>
 
-        <!-- Admin Authentication -->
-        <div id="admin-auth" class="mt-4 d-none">
-            <h2 class="mb-4">管理者認証</h2>
+        <!-- User Registration -->
+        <div id="user-registration" class="mt-4 d-none">
+            <h2 class="mb-4">ユーザー登録</h2>
             <div class="alert alert-info">
-                このページは管理者専用です。管理者として認証されていない場合はアクセスできません。
+                運営されているこども食堂を選択して登録してください。
             </div>
-            <div id="auth-message"></div>
+            <form id="registration-form">
+                <div class="mb-3">
+                    <label class="form-label">ご担当者様名</label>
+                    <p class="form-control-static" id="userDisplayName"></p>
+                </div>
+                <div class="mb-3">
+                    <label for="shokudoSelect" class="form-label">運営こども食堂</label>
+                    <select class="form-select" id="shokudoSelect" name="shokudoId" required>
+                        <option value="" selected disabled>選択してください</option>
+                    </select>
+                    <input type="text" class="form-control mt-2" id="shokudoSearch" placeholder="食堂名で検索">
+                </div>
+                <button type="submit" class="btn btn-primary">登録する</button>
+            </form>
         </div>
 
         <!-- Admin Panel -->
         <div id="admin-panel" class="mt-4 d-none">
-            <h2 class="mb-4">管理画面</h2>
+            <h2 class="mb-4">設定画面</h2>
             
             <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="shokudo-tab" data-bs-toggle="tab" data-bs-target="#shokudo" type="button" role="tab" aria-controls="shokudo" aria-selected="true">こども食堂管理</button>
+                    <button class="nav-link active" id="question-tab" data-bs-toggle="tab" 
+                            data-bs-target="#question" type="button" role="tab">質問設定</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="question-tab" data-bs-toggle="tab" data-bs-target="#question" type="button" role="tab" aria-controls="question" aria-selected="false">質問設定</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="color-tab" data-bs-toggle="tab" data-bs-target="#color" type="button" role="tab" aria-controls="color" aria-selected="false">色設定</button>
+                    <button class="nav-link" id="color-tab" data-bs-toggle="tab" 
+                            data-bs-target="#color" type="button" role="tab">色設定</button>
                 </li>
             </ul>
             
             <div class="tab-content" id="adminTabContent">
-                <!-- こども食堂管理 -->
-                <div class="tab-pane fade show active" id="shokudo" role="tabpanel" aria-labelledby="shokudo-tab">
-                    <h3 class="mb-3">こども食堂登録</h3>
-                    <form id="shokudo-form">
-                        <div class="mb-3">
-                            <label for="shokudoName" class="form-label">こども食堂名</label>
-                            <input type="text" class="form-control" id="shokudoName" name="shokudoName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="address" class="form-label">住所</label>
-                            <input type="text" class="form-control" id="address" name="address">
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col">
-                                <label for="latitude" class="form-label">緯度</label>
-                                <input type="text" class="form-control" id="latitude" name="latitude">
-                            </div>
-                            <div class="col">
-                                <label for="longitude" class="form-label">経度</label>
-                                <input type="text" class="form-control" id="longitude" name="longitude">
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">登録する</button>
-                    </form>
-                    
-                    <hr class="my-4">
-                    
-                    <h3 class="mb-3">こども食堂一覧</h3>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>名前</th>
-                                    <th>住所</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="shokudo-list">
-                                <!-- Will be populated dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
                 <!-- 質問設定 -->
-                <div class="tab-pane fade" id="question" role="tabpanel" aria-labelledby="question-tab">
+                <div class="tab-pane fade show active" id="question" role="tabpanel">
                     <h3 class="mb-3">質問と回答設定</h3>
+                    <!-- 質問設定フォーム -->
                     <form id="question-form">
                         <div class="mb-3">
-                            <label for="questionShokudoId" class="form-label">こども食堂</label>
-                            <select class="form-select" id="questionShokudoId" name="questionShokudoId" required>
-                                <option value="" selected disabled>選択してください</option>
-                                <!-- Will be populated dynamically -->
-                            </select>
-                        </div>
-                        <div class="mb-3">
                             <label for="questionText" class="form-label">質問文</label>
-                            <input type="text" class="form-control" id="questionText" name="questionText" required>
+                            <input type="text" class="form-control" id="questionText" 
+                                   name="questionText" required>
                         </div>
                         <div class="card mb-3">
                             <div class="card-header">回答選択肢（各象限に割り当てる回答）</div>
@@ -109,55 +72,66 @@
                                 <div class="row mb-3">
                                     <div class="col-6">
                                         <label for="quadrantUL" class="form-label">左上</label>
-                                        <input type="text" class="form-control" id="quadrantUL" name="quadrantUL" required>
+                                        <input type="text" class="form-control" id="quadrantUL" 
+                                               name="quadrantUL" required>
                                     </div>
                                     <div class="col-6">
                                         <label for="quadrantUR" class="form-label">右上</label>
-                                        <input type="text" class="form-control" id="quadrantUR" name="quadrantUR" required>
+                                        <input type="text" class="form-control" id="quadrantUR" 
+                                               name="quadrantUR" required>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-6">
                                         <label for="quadrantLL" class="form-label">左下</label>
-                                        <input type="text" class="form-control" id="quadrantLL" name="quadrantLL" required>
+                                        <input type="text" class="form-control" id="quadrantLL" 
+                                               name="quadrantLL" required>
                                     </div>
                                     <div class="col-6">
                                         <label for="quadrantLR" class="form-label">右下</label>
-                                        <input type="text" class="form-control" id="quadrantLR" name="quadrantLR" required>
+                                        <input type="text" class="form-control" id="quadrantLR" 
+                                               name="quadrantLR" required>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">設定を保存</button>
+                        <div class="d-flex align-items-center">
+                            <button type="submit" class="btn btn-primary">設定を保存</button>
+                            <span id="question-save-message" class="ms-3 text-success" style="display: none;">
+                                設定が保存されました
+                            </span>
+                        </div>
                     </form>
                     
                     <hr class="my-4">
                     
                     <h3 class="mb-3">現在の設定</h3>
-                    <div class="mb-3">
-                        <label for="currentQuestionShokudoId" class="form-label">こども食堂</label>
-                        <select class="form-select" id="currentQuestionShokudoId">
-                            <option value="" selected disabled>選択してください</option>
-                            <!-- Will be populated dynamically -->
-                        </select>
-                    </div>
-                    <div id="current-question-settings" class="d-none">
+                    <!-- 現在の設定表示部分 -->
+                    <div id="current-question-settings">
                         <div class="card">
                             <div class="card-header">質問設定</div>
                             <div class="card-body">
-                                <h5 class="card-title" id="current-question-text"></h5>
+                                <h5>質問文</h5>
+                                <p id="current-question"></p>
+                                <h5>回答選択肢</h5>
                                 <div class="row">
-                                    <div class="col-6 text-center border-end border-bottom p-2">
-                                        <div id="current-quadrant-ul"></div>
+                                    <div class="col-6">
+                                        <strong>左上:</strong>
+                                        <p id="current-quadrant-ul"></p>
                                     </div>
-                                    <div class="col-6 text-center border-bottom p-2">
-                                        <div id="current-quadrant-ur"></div>
+                                    <div class="col-6">
+                                        <strong>右上:</strong>
+                                        <p id="current-quadrant-ur"></p>
                                     </div>
-                                    <div class="col-6 text-center border-end p-2">
-                                        <div id="current-quadrant-ll"></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <strong>左下:</strong>
+                                        <p id="current-quadrant-ll"></p>
                                     </div>
-                                    <div class="col-6 text-center p-2">
-                                        <div id="current-quadrant-lr"></div>
+                                    <div class="col-6">
+                                        <strong>右下:</strong>
+                                        <p id="current-quadrant-lr"></p>
                                     </div>
                                 </div>
                             </div>
@@ -166,31 +140,25 @@
                 </div>
                 
                 <!-- 色設定 -->
-                <div class="tab-pane fade" id="color" role="tabpanel" aria-labelledby="color-tab">
+                <div class="tab-pane fade" id="color" role="tabpanel">
                     <h3 class="mb-3">色の意味設定</h3>
+                    <!-- 色設定フォーム -->
                     <form id="color-form">
-                        <div class="mb-3">
-                            <label for="colorShokudoId" class="form-label">こども食堂</label>
-                            <select class="form-select" id="colorShokudoId" name="colorShokudoId" required>
-                                <option value="" selected disabled>選択してください</option>
-                                <!-- Will be populated dynamically -->
-                            </select>
-                        </div>
                         <div class="card mb-3">
-                            <div class="card-header">シールの色が表す属性</div>
                             <div class="card-body">
-                                <div class="row mb-3">
+                                <div class="row">
                                     <div class="col-6">
                                         <label for="colorRed" class="form-label">
                                             <span class="badge bg-danger">赤</span>
                                         </label>
-                                        <input type="text" class="form-control" id="colorRed" name="colorRed" placeholder="例: 未就学児" required>
+                                        <input type="text" class="form-control" id="colorRed" 
+                                               name="colorRed" required>
                                     </div>
                                     <div class="col-6">
                                         <label for="colorGreen" class="form-label">
                                             <span class="badge bg-success">緑</span>
                                         </label>
-                                        <input type="text" class="form-control" id="colorGreen" name="colorGreen" placeholder="例: 小学生" required>
+                                        <input type="text" class="form-control" id="colorGreen" name="colorGreen" required>
                                     </div>
                                 </div>
                                 <div class="row">
@@ -198,50 +166,50 @@
                                         <label for="colorBlue" class="form-label">
                                             <span class="badge bg-primary">青</span>
                                         </label>
-                                        <input type="text" class="form-control" id="colorBlue" name="colorBlue" placeholder="例: 中高生" required>
+                                        <input type="text" class="form-control" id="colorBlue" name="colorBlue" required>
                                     </div>
                                     <div class="col-6">
                                         <label for="colorYellow" class="form-label">
                                             <span class="badge bg-warning">黄</span>
                                         </label>
-                                        <input type="text" class="form-control" id="colorYellow" name="colorYellow" placeholder="例: 大人" required>
+                                        <input type="text" class="form-control" id="colorYellow" name="colorYellow" required>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">設定を保存</button>
+                        <div class="d-flex align-items-center">
+                            <button type="submit" class="btn btn-primary">設定を保存</button>
+                            <span id="color-save-message" class="ms-3 text-success" style="display: none;">
+                                設定が保存されました
+                            </span>
+                        </div>
                     </form>
                     
                     <hr class="my-4">
                     
                     <h3 class="mb-3">現在の設定</h3>
-                    <div class="mb-3">
-                        <label for="currentColorShokudoId" class="form-label">こども食堂</label>
-                        <select class="form-select" id="currentColorShokudoId">
-                            <option value="" selected disabled>選択してください</option>
-                            <!-- Will be populated dynamically -->
-                        </select>
-                    </div>
-                    <div id="current-color-settings" class="d-none">
+                    <div id="current-color-settings">
                         <div class="card">
-                            <div class="card-header">色設定</div>
+                            <div class="card-header">色の意味設定</div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-3 text-center">
-                                        <span class="badge bg-danger">赤</span>
-                                        <div id="current-color-red"></div>
+                                    <div class="col-6">
+                                        <strong><span class="badge bg-danger">赤</span>:</strong>
+                                        <p id="current-color-red"></p>
                                     </div>
-                                    <div class="col-3 text-center">
-                                        <span class="badge bg-success">緑</span>
-                                        <div id="current-color-green"></div>
+                                    <div class="col-6">
+                                        <strong><span class="badge bg-success">緑</span>:</strong>
+                                        <p id="current-color-green"></p>
                                     </div>
-                                    <div class="col-3 text-center">
-                                        <span class="badge bg-primary">青</span>
-                                        <div id="current-color-blue"></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <strong><span class="badge bg-primary">青</span>:</strong>
+                                        <p id="current-color-blue"></p>
                                     </div>
-                                    <div class="col-3 text-center">
-                                        <span class="badge bg-warning">黄</span>
-                                        <div id="current-color-yellow"></div>
+                                    <div class="col-6">
+                                        <strong><span class="badge bg-warning">黄</span>:</strong>
+                                        <p id="current-color-yellow"></p>
                                     </div>
                                 </div>
                             </div>
@@ -252,15 +220,12 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Debug JS (for troubleshooting) -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="/static/js/debug.js"></script>
-    <!-- Admin JS -->
-    <script src="/static/js/liff.js"></script>
-    <script src="/static/js/admin.js"></script>
-    
-    <!-- Pass LIFF ID to JavaScript -->
+    <script src="/static/js/admin.js"></script>  <!-- admin.jsを先に読み込む -->
+    <script src="/static/js/liff.js"></script>   <!-- liff.jsを後に読み込む -->
     <script>
         const liffId = "{{ liff_id }}";
     </script>

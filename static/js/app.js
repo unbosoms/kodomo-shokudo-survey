@@ -8,58 +8,128 @@ document.addEventListener('DOMContentLoaded', () => {
     console.info('app.js: DOM content loaded');
 });
 
+// グローバル変数を追加
+let currentUser = null;
+let currentShokudo = null;
+
 /**
  * Main application initialization
  * This function is called from liff.js after user authentication
  */
 function showMainApp(user, shokudo) {
+    currentUser = user;
+    currentShokudo = shokudo;
+
     console.info('app.js: showMainApp called with user:', user, 'shokudo:', shokudo);
     
-    try {
-        // Show main app container if it's hidden
-        const mainAppElement = document.getElementById('main-app');
-        if (mainAppElement.classList.contains('d-none')) {
-            console.info('app.js: Showing main app container');
-            mainAppElement.classList.remove('d-none');
-        }
+    // 読み込み中の表示を非表示に
+    const loading = document.getElementById('loading');
+    if (loading) loading.classList.add('d-none');
+    
+    // メインアプリを表示
+    const mainApp = document.getElementById('main-app');
+    if (mainApp) {
+        console.info('app.js: Showing main app container');
+        mainApp.classList.remove('d-none');
         
-        // Set shokudo name
-        const shokudoNameElement = document.getElementById('shokudo-name');
-        if (shokudoNameElement) {
-            shokudoNameElement.textContent = shokudo.shokudo_name || '';
-            // Store shokudo ID in data attribute
-            shokudoNameElement.dataset.shokudoId = shokudo.shokudo_id || '';
-            console.info('app.js: Set shokudo name to:', shokudo.shokudo_name);
-        }
-        
-        // Set up camera button
+        // カメラ起動ボタンのイベントリスナーを設定
         const startCameraButton = document.getElementById('start-camera');
         if (startCameraButton) {
-            // Remove any existing event listeners
-            const newButton = startCameraButton.cloneNode(true);
-            startCameraButton.parentNode.replaceChild(newButton, startCameraButton);
-            
-            // Add event listener
-            newButton.addEventListener('click', function() {
-                console.info('app.js: Start camera button clicked');
-                // Hide this button
-                this.classList.add('d-none');
-                
-                // Initialize camera
-                if (typeof initCamera === 'function') {
-                    initCamera();
-                } else {
-                    showError('カメラ機能が利用できません');
-                    console.error('app.js: initCamera function not found');
-                }
+            console.info('app.js: Setting up camera button listener');
+            startCameraButton.addEventListener('click', () => {
+                console.info('app.js: Camera button clicked');
+                initCamera();
             });
         }
-        
-        console.info('app.js: showMainApp completed successfully');
-    } catch (error) {
-        console.error('app.js: Error in showMainApp:', error);
-        showError('アプリの初期化中にエラーが発生しました: ' + error.message);
+
+        // 子ども食堂名を設定
+        const shokudoName = document.getElementById('shokudo-name');
+        if (shokudoName) {
+            shokudoName.textContent = shokudo.shokudo_name;
+            console.info('app.js: Set shokudo name to:', shokudo.shokudo_name);
+        }
+
+        // 設定を読み込む
+        loadSettings(shokudo.shokudo_id);
     }
+
+    console.info('app.js: showMainApp completed successfully');
+}
+
+// APIエンドポイントの指定を修正
+const API_BASE_URL = window.location.origin;
+
+function loadSettings(shokudoId) {
+    console.info('app.js: Loading settings for shokudo:', shokudoId);
+    
+    // URLの構築方法を修正
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    const apiUrl = `${protocol}//${host}/api/get-settings?shokudoId=${shokudoId}`;
+    
+    console.info('app.js: Fetching from:', apiUrl);
+
+    fetch(apiUrl)
+        .then(response => {
+            console.info('app.js: Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.info('app.js: Received data:', data);
+            if (data.success) {
+                console.info('app.js: Settings loaded:', data);
+                
+                // 色の設定を適用
+                if (data.color) {
+                    setColorTexts(data.color);
+                }
+                
+                // 質問の設定を適用
+                if (data.quadrant) {
+                    setQuadrantTexts(data.quadrant);
+                }
+            } else {
+                console.error('app.js: Failed to load settings:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('app.js: Failed to load settings:', error);
+            throw error;
+        });
+}
+
+function setColorTexts(colorSettings) {
+    console.info('app.js: Setting color texts:', colorSettings);
+    
+    const elements = {
+        red: document.getElementById('color-red-text'),
+        green: document.getElementById('color-green-text'),
+        blue: document.getElementById('color-blue-text'),
+        yellow: document.getElementById('color-yellow-text')
+    };
+
+    if (elements.red) elements.red.textContent = colorSettings.color_red || '';
+    if (elements.green) elements.green.textContent = colorSettings.color_green || '';
+    if (elements.blue) elements.blue.textContent = colorSettings.color_blue || '';
+    if (elements.yellow) elements.yellow.textContent = colorSettings.color_yellow || '';
+}
+
+function setQuadrantTexts(quadrantSettings) {
+    console.info('app.js: Setting quadrant texts:', quadrantSettings);
+    
+    const elements = {
+        question: document.getElementById('question-text'),
+        ul: document.getElementById('quadrant-ul-text'),
+        ur: document.getElementById('quadrant-ur-text'),
+        ll: document.getElementById('quadrant-ll-text'),
+        lr: document.getElementById('quadrant-lr-text')
+    };
+
+    if (elements.question) elements.question.textContent = quadrantSettings.question || '';
+    if (elements.ul) elements.ul.textContent = quadrantSettings.quadrant_ul || '';
+    if (elements.ur) elements.ur.textContent = quadrantSettings.quadrant_ur || '';
+    if (elements.ll) elements.ll.textContent = quadrantSettings.quadrant_ll || '';
+    if (elements.lr) elements.lr.textContent = quadrantSettings.quadrant_lr || '';
 }
 
 /**

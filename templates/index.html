@@ -11,12 +11,6 @@
 </head>
 <body>
     <div class="container">
-        <div id="loading" class="d-flex justify-content-center align-items-center vh-100">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-
         <!-- User Registration Form -->
         <div id="registration-form" class="mt-4 d-none">
             <h2 class="mb-4">ユーザー登録</h2>
@@ -53,35 +47,35 @@
                         <h5 class="card-title" id="question-text"></h5>
                         <div class="row">
                             <div class="col-6 text-center border-end border-bottom p-2">
-                                <div id="quadrant-ul"></div>
+                                <div id="quadrant-ul-text"></div>
                             </div>
                             <div class="col-6 text-center border-bottom p-2">
-                                <div id="quadrant-ur"></div>
+                                <div id="quadrant-ur-text"></div>
                             </div>
                             <div class="col-6 text-center border-end p-2">
-                                <div id="quadrant-ll"></div>
+                                <div id="quadrant-ll-text"></div>
                             </div>
                             <div class="col-6 text-center p-2">
-                                <div id="quadrant-lr"></div>
+                                <div id="quadrant-lr-text"></div>
                             </div>
                         </div>
                         <div class="mt-3">
                             <div class="row">
                                 <div class="col-3 text-center">
                                     <span class="badge bg-danger">赤</span>
-                                    <div id="color-red"></div>
+                                    <div id="color-red-text"></div>
                                 </div>
                                 <div class="col-3 text-center">
                                     <span class="badge bg-success">緑</span>
-                                    <div id="color-green"></div>
+                                    <div id="color-green-text"></div>
                                 </div>
                                 <div class="col-3 text-center">
                                     <span class="badge bg-primary">青</span>
-                                    <div id="color-blue"></div>
+                                    <div id="color-blue-text"></div>
                                 </div>
                                 <div class="col-3 text-center">
                                     <span class="badge bg-warning">黄</span>
-                                    <div id="color-yellow"></div>
+                                    <div id="color-yellow-text"></div>
                                 </div>
                             </div>
                         </div>
@@ -91,9 +85,12 @@
             
             <div class="camera-container mb-3">
                 <div class="position-relative">
-                    <video id="camera" class="w-100" autoplay playsinline></video>
+                    <!-- カメラプレビュー -->
+                    <video id="camera" class="w-100 d-none" autoplay playsinline></video>
+                    <!-- ガイドオーバーレイ -->
                     <img id="guide-overlay" class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events: none;">
-                    <canvas id="canvas" class="d-none"></canvas>
+                    <!-- 撮影プレビュー -->
+                    <canvas id="canvas" class="w-100 d-none"></canvas>
                 </div>
                 
                 <div class="mt-2 d-flex justify-content-between">
@@ -112,6 +109,14 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Loading spinner -->
+    <div id="loading" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(255,255,255,0.8); z-index: 1000;">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <div class="mt-2">集計中...</div>
         </div>
     </div>
 

@@ -162,30 +162,88 @@ document.addEventListener('DOMContentLoaded', function() {
     // Log LIFF ID
     if (typeof liffId !== 'undefined') {
         console.info('LIFF ID:', liffId);
-    } else {
-        console.error('LIFF ID is not defined');
     }
-    
-    // Log DOM elements
-    console.info('Loading element visible:', !document.getElementById('loading').classList.contains('d-none'));
-    console.info('Registration form visible:', !document.getElementById('registration-form').classList.contains('d-none'));
-    console.info('Main app visible:', !document.getElementById('main-app').classList.contains('d-none'));
-    
+
+    // Log DOM elements visibility - with null checks
+    const loadingElement = document.getElementById('loading');
+    const registrationForm = document.getElementById('registration-form');
+    const mainApp = document.getElementById('main-app');
+
+    if (loadingElement) {
+        console.info('Loading element visible:', !loadingElement.classList.contains('d-none'));
+    }
+    if (registrationForm) {
+        console.info('Registration form visible:', !registrationForm.classList.contains('d-none'));
+    }
+    if (mainApp) {
+        console.info('Main app visible:', !mainApp.classList.contains('d-none'));
+    }
+
     // Add debug info to showMainApp function
     const originalShowMainApp = window.showMainApp;
-    window.showMainApp = function(user, shokudo) {
-        console.info('showMainApp called with user:', user, 'shokudo:', shokudo);
-        
-        // Call original function
-        if (originalShowMainApp) {
+    if (typeof originalShowMainApp === 'function') {
+        window.showMainApp = function(user, shokudo) {
+            console.info('showMainApp called with user:', user, 'shokudo:', shokudo);
+            
             try {
                 originalShowMainApp(user, shokudo);
                 console.info('showMainApp completed successfully');
             } catch (error) {
                 console.error('Error in showMainApp:', error);
             }
-        } else {
-            console.error('originalShowMainApp is not defined');
+        };
+    }
+});
+
+// Reduce duplicate error logging
+window.addEventListener('error', (event) => {
+    // Avoid duplicate error logs
+    if (!event.error || event.error._logged) {
+        return;
+    }
+    
+    console.error('[ERROR] Global error:', event.error.message);
+    console.error('[ERROR] Stack:', event.error.stack);
+    
+    // Mark error as logged
+    event.error._logged = true;
+});
+
+/**
+ * Debug utility functions
+ */
+class DebugUtility {
+    constructor() {
+        console.info('[INFO] Debug utility loaded');
+    }
+
+    checkVisibility() {
+        // 要素の存在確認を追加
+        const loading = document.getElementById('loading');
+        const registration = document.getElementById('user-registration');
+        const adminPanel = document.getElementById('admin-panel');
+
+        // 要素が存在する場合のみclassListをチェック
+        if (loading) {
+            console.info('[INFO] Loading element visible:', !loading.classList.contains('d-none'));
         }
-    };
+        if (registration) {
+            console.info('[INFO] Registration form visible:', !registration.classList.contains('d-none'));
+        }
+        if (adminPanel) {
+            console.info('[INFO] Admin panel visible:', !adminPanel.classList.contains('d-none'));
+        }
+    }
+}
+
+// Initialize debug utility
+document.addEventListener('DOMContentLoaded', () => {
+    const debug = new DebugUtility();
+    debug.checkVisibility();
+});
+
+// エラーハンドリングの追加
+window.addEventListener('error', (event) => {
+    console.error('[ERROR] Global error:', event.error);
+    console.error('[ERROR] Stack:', event.error.stack);
 });

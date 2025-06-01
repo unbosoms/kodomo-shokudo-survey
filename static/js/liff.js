@@ -50,7 +50,7 @@ function onLiffInitialized() {
         .then(profile => {
             console.info('liff.js: Got user profile:', profile.userId, profile.displayName);
             
-            // Store user info in form fields if they exist
+            // Store user info in form fields
             const userIdElement = document.getElementById('userId');
             if (userIdElement) {
                 userIdElement.value = profile.userId;
@@ -61,16 +61,8 @@ function onLiffInitialized() {
                 displayNameElement.value = profile.displayName;
             }
             
-            // Check if we're on the admin page
-            if (window.location.pathname.includes('/admin')) {
-                console.info('liff.js: On admin page, checking if user is admin');
-                // For admin page, we only need to check if user is admin
-                checkAdminStatus(profile);
-            } else {
-                // For main app, check user registration status
-                console.info('liff.js: On main page, checking user registration');
-                checkUserRegistration(profile);
-            }
+            // Check user registration status
+            checkUserRegistration(profile);
         })
         .catch(error => {
             console.error('liff.js: Failed to get profile:', error);
@@ -146,7 +138,6 @@ function checkAdminStatus(profile) {
 function checkUserRegistration(profile) {
     console.info('liff.js: Checking user registration for user ID:', profile.userId);
     
-    // Call API to check user registration
     fetch('/api/check-user', {
         method: 'POST',
         headers: {
@@ -157,32 +148,33 @@ function checkUserRegistration(profile) {
             displayName: profile.displayName
         })
     })
-    .then(response => {
-        console.info('liff.js: Got response from /api/check-user:', response.status);
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         console.info('liff.js: User registration data:', data);
         
         if (data.success) {
-            if (data.isAdmin) {
-                // User is admin, show admin panel
-                console.info('liff.js: User is admin, showing admin panel');
-                showAdminPanel();
-            } else if (data.isRegistered) {
-                // User is registered, show main app
-                console.info('liff.js: User is registered, showing main app');
-                
-                // Hide loading and registration form if visible
-                document.getElementById('loading').classList.add('d-none');
-                document.getElementById('registration-form').classList.add('d-none');
-                
-                // Call initializeMainApp with user and shokudo data
-                initializeMainApp(data.user, data.shokudo);
+            if (data.isRegistered) {
+                // User is registered, show admin panel or main app
+                console.info('liff.js: User is registered');
+                if (window.location.pathname.includes('/admin')) {
+                    if (typeof initAdminPanel === 'function') {
+                        console.info('liff.js: Calling initAdminPanel');
+                        initAdminPanel(data.user, data.shokudo);
+                    } else {
+                        console.error('liff.js: initAdminPanel function not found');
+                        showError('管理画面の初期化に失敗しました: initAdminPanel関数が見つかりません');
+                    }
+                } else {
+                    initializeMainApp(data.user, data.shokudo);
+                }
             } else {
                 // User is not registered, show registration form
                 console.info('liff.js: User is not registered, showing registration form');
-                showRegistrationForm();
+                if (typeof initializeRegistration === 'function') {
+                    initializeRegistration(profile.displayName);
+                } else {
+                    showError('登録画面の初期化に失敗しました');
+                }
             }
         } else {
             console.error('liff.js: Failed to check user registration:', data.error);
@@ -249,11 +241,23 @@ function showRegistrationForm() {
  * Load list of children's cafeterias
  */
 function loadShokudoList() {
-    fetch('/api/get-shokudos')
-        .then(response => response.json())
+    console.info('liff.js: Starting loadShokudoList');
+    const apiUrl = window.location.origin + '/api/get-shokudos';
+    console.info('liff.js: Fetching from:', apiUrl);
+
+    fetch(apiUrl)
+        .then(response => {
+            console.info('liff.js: Shokudo list response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.info('liff.js: Shokudo list data:', data);
+            
             if (data.success && data.shokudos) {
-                const select = document.getElementById('shokudoId');
+                const select = document.getElementById('shokudoSelect');  // shokudoIdをshokudoSelectに修正
                 
                 // Clear existing options except the first one
                 while (select.options.length > 1) {
@@ -272,7 +276,8 @@ function loadShokudoList() {
             }
         })
         .catch(error => {
-            showError(`API error: ${error.message}`);
+            console.error('liff.js: Error loading shokudo list:', error);
+            showError(`こども食堂の一覧の取得に失敗しました: ${error.message}`);
         });
 }
 
@@ -304,9 +309,20 @@ function initializeMainApp(user, shokudo) {
  * Load settings for the children's cafeteria
  */
 function loadSettings(shokudoId) {
-    fetch(`/api/get-settings?shokudoId=${shokudoId}`)
-        .then(response => response.json())
+    console.info('liff.js: Starting loadSettings for shokudo:', shokudoId);
+    const apiUrl = window.location.origin + `/api/get-settings?shokudoId=${shokudoId}`;
+    console.info('liff.js: Fetching from:', apiUrl);
+
+    fetch(apiUrl)
+        .then(response => {
+            console.info('liff.js: Settings response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.info('liff.js: Settings data:', data);
             if (data.success) {
                 // Set question text
                 if (data.quadrant && data.quadrant.question) {
@@ -329,11 +345,13 @@ function loadSettings(shokudoId) {
                     document.getElementById('color-yellow').textContent = data.color.yellow || '';
                 }
             } else {
+                console.error('liff.js: Failed to get settings:', data.error);
                 showError('設定の取得に失敗しました');
             }
         })
         .catch(error => {
-            showError(`API error: ${error.message}`);
+            console.error('liff.js: Error loading settings:', error, 'Stack:', error.stack);
+            showError(`設定の取得に失敗しました: ${error.message}`);
         });
 }
 
