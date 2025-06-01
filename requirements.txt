@@ -1,13 +1,21 @@
 flask==2.0.1
+Werkzeug==2.0.1
 python-dotenv==0.19.0
-werkzeug==2.0.1
+
+# LINE Bot SDK
 line-bot-sdk==2.1.0
+
+# Google API clients
 google-api-python-client==2.19.1
 google-auth==2.3.0
 google-auth-oauthlib==0.4.6
 google-auth-httplib2==0.1.0
 google-cloud-vision==2.4.2
+
+# Image processing
 opencv-python-headless==4.5.3.56
 numpy==1.21.2
 Pillow==8.3.2
+
+# Production server
 gunicorn==20.1.0
