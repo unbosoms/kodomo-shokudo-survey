@@ -253,7 +253,7 @@ function loadShokudoList() {
             console.info('liff.js: Shokudo list data:', data);
             
             if (data.success && data.shokudos) {
-                const select = document.getElementById('shokudoSelect');  // shokudoIdをshokudoSelectに修正
+                const select = document.getElementById('shokudoId');
                 
                 // Clear existing options except the first one
                 while (select.options.length > 1) {
