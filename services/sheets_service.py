@@ -281,47 +281,33 @@ class SheetsService:
     
     def update_color(self, shokudo_id, red, green, blue, yellow):
         """Update color settings"""
-        # Check if settings already exist
-        existing_settings = self.get_color_settings(shokudo_id)
-        if existing_settings:
-            # Update existing settings
-            range_name = 'master_color!A:E'
-            result = self.service.spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id,
-                range=range_name
-            ).execute()
-            
-            values = result.get('values', [])
-            for i, row in enumerate(values[1:], start=2):  # Start from row 2 (after header)
-                if len(row) >= 1 and row[0] == shokudo_id:
-                    # Update row
-                    update_range = f'master_color!A{i}:E{i}'
-                    update_body = {
-                        'values': [[shokudo_id, red, green, blue, yellow]]
-                    }
-                    self.service.spreadsheets().values().update(
-                        spreadsheetId=self.spreadsheet_id,
-                        range=update_range,
-                        valueInputOption='RAW',
-                        body=update_body
-                    ).execute()
-                    return True
-            
-            return False
-        else:
-            # Add new settings
-            range_name = 'master_color!A:E'
-            body = {
-                'values': [[shokudo_id, red, green, blue, yellow]]
-            }
-            self.service.spreadsheets().values().append(
-                spreadsheetId=self.spreadsheet_id,
-                range=range_name,
-                valueInputOption='RAW',
-                body=body
-            ).execute()
-            
-            return True
+        range_name = 'master_color!A:E'
+        result = self.service.spreadsheets().values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range=range_name
+        ).execute()
+
+        values = result.get('values', [])
+        for i, row in enumerate(values[1:], start=2):  # Start from row 2 (after header)
+            if len(row) >= 1 and row[0] == shokudo_id:
+                # Update existing row
+                update_range = f'master_color!A{i}:E{i}'
+                self.service.spreadsheets().values().update(
+                    spreadsheetId=self.spreadsheet_id,
+                    range=update_range,
+                    valueInputOption='RAW',
+                    body={'values': [[shokudo_id, red, green, blue, yellow]]}
+                ).execute()
+                return True
+
+        # No existing row found, append new row
+        self.service.spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id,
+            range=range_name,
+            valueInputOption='RAW',
+            body={'values': [[shokudo_id, red, green, blue, yellow]]}
+        ).execute()
+        return True
     
     def record_survey(self, user_id, counts, file_path):
         """Record survey results in spreadsheet"""
