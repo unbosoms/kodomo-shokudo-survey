@@ -85,8 +85,12 @@ def upload_image():
             logger.info(f"Image processed successfully. Counts: {counts}")
         except Exception as e:
             logger.error(f"Error processing image: {e}")
-            return jsonify({'success': False, 'error': f'Image processing error: {str(e)}'}), 500
-        
+            return jsonify({
+                'success': False,
+                'error_type': 'image_processing',
+                'error': f'Image processing error: {str(e)}'
+            }), 500
+
         # Upload to Google Drive with timeout handling
         try:
             logger.info("Uploading to Google Drive...")
@@ -94,8 +98,12 @@ def upload_image():
             logger.info(f"Uploaded to Google Drive: {file_path}")
         except Exception as e:
             logger.error(f"Error uploading to Google Drive: {e}")
-            return jsonify({'success': False, 'error': f'Google Drive upload error: {str(e)}'}), 500
-        
+            return jsonify({
+                'success': False,
+                'error_type': 'drive_upload',
+                'error': f'Google Drive upload error: {str(e)}'
+            }), 500
+
         # Record in Google Sheets
         try:
             logger.info("Recording in Google Sheets...")

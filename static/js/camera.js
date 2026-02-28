@@ -246,22 +246,18 @@ function uploadWithRetry(url, formData, maxRetries, currentRetry = 0) {
     .then(response => {
         // Clear the timeout
         clearTimeout(timeoutId);
-        
-        // Check if response is ok
-        if (!response.ok) {
-            throw new Error(`Server responded with status: ${response.status}`);
-        }
-        
-        return response.json();
+
+        // レスポンスのJSONを読み取る（エラー時も内容を取得するため）
+        return response.json().then(data => ({ ok: response.ok, status: response.status, data }));
     })
-    .then(data => {
+    .then(({ ok, status, data }) => {
         // Hide loading spinner
         document.getElementById('loading').classList.add('d-none');
-        
-        if (data.success) {
+
+        if (ok && data.success) {
             // Show results
             showResults(data.counts);
-            
+
             // Close LIFF browser after 5 seconds if in LINE
             if (liff.isInClient()) {
                 setTimeout(() => {
@@ -269,8 +265,17 @@ function uploadWithRetry(url, formData, maxRetries, currentRetry = 0) {
                 }, 5000);
             }
         } else {
-            showError(data.error || 'アップロードに失敗しました');
-            
+            // エラー種別に応じた日本語メッセージを表示
+            const errorMessages = {
+                'image_processing': '画像処理に失敗しました。アンケート用紙がしっかり映るように撮り直してください。',
+                'drive_upload': 'Google Driveへのアップロードに失敗しました。しばらく待ってから再度お試しください。'
+            };
+            const errorType = data.error_type;
+            const userMessage = errorMessages[errorType] || data.error || 'エラーが発生しました。もう一度お試しください。';
+
+            console.error(`Upload failed (error_type=${errorType}, status=${status}):`, data.error);
+            showError(userMessage);
+
             // Re-enable buttons
             document.getElementById('retake-photo').disabled = false;
             document.getElementById('upload-photo').disabled = false;
@@ -279,13 +284,13 @@ function uploadWithRetry(url, formData, maxRetries, currentRetry = 0) {
     .catch(error => {
         // Clear the timeout
         clearTimeout(timeoutId);
-        
+
         console.error('Upload error:', error);
-        
+
         // Check if we should retry
         if (currentRetry < maxRetries - 1) {
             console.info(`Upload failed. Retrying... (${currentRetry + 1}/${maxRetries})`);
-            
+
             // Show retry message
             const loadingElement = document.getElementById('loading');
             if (loadingElement) {
@@ -297,11 +302,11 @@ function uploadWithRetry(url, formData, maxRetries, currentRetry = 0) {
                     retryMessage.className = 'text-center mt-2';
                     loadingElement.appendChild(retryMessage);
                 }
-                
+
                 // Update retry message
                 retryMessage.textContent = `接続エラーが発生しました。再試行中... (${currentRetry + 2}/${maxRetries})`;
             }
-            
+
             // Wait a bit before retrying (exponential backoff)
             const delay = Math.min(1000 * Math.pow(2, currentRetry), 10000);
             setTimeout(() => {
@@ -310,10 +315,10 @@ function uploadWithRetry(url, formData, maxRetries, currentRetry = 0) {
         } else {
             // Hide loading spinner
             document.getElementById('loading').classList.add('d-none');
-            
+
             // Show error
-            showError(`アップロードエラー: ${error.message}。ネットワーク接続を確認してください。`);
-            
+            showError('ネットワークエラーが発生しました。接続を確認してから再度お試しください。');
+
             // Re-enable buttons
             document.getElementById('retake-photo').disabled = false;
             document.getElementById('upload-photo').disabled = false;
