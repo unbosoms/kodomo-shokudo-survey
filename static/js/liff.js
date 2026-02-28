@@ -170,11 +170,7 @@ function checkUserRegistration(profile) {
             } else {
                 // User is not registered, show registration form
                 console.info('liff.js: User is not registered, showing registration form');
-                if (typeof initializeRegistration === 'function') {
-                    initializeRegistration(profile.displayName);
-                } else {
-                    showError('登録画面の初期化に失敗しました');
-                }
+                showRegistrationForm();
             }
         } else {
             console.error('liff.js: Failed to check user registration:', data.error);
