@@ -1,6 +1,5 @@
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaInMemoryUpload, MediaIoBaseUpload
-from google.oauth2 import service_account
 from googleapiclient.errors import HttpError
 import os
 import io
@@ -10,26 +9,15 @@ import time
 import socket
 import httplib2
 
+from services.google_auth import get_google_credentials
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
 class DriveService:
     def __init__(self):
         """Initialize Google Drive API client"""
-        # Set longer timeout for Google API requests
-        socket_timeout = 60  # 60 seconds
-        
-        # Create credentials
-        credentials = service_account.Credentials.from_service_account_file(
-            os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE'),
-            scopes=['https://www.googleapis.com/auth/drive']
-        )
-        
-        # Set socket timeout on the credentials' authorized http property
-        if hasattr(credentials, 'authorized_http'):
-            credentials.authorized_http.timeout = socket_timeout
-        
-        # Build service with credentials
+        credentials = get_google_credentials(['https://www.googleapis.com/auth/drive'])
         self.service = build('drive', 'v3', credentials=credentials)
         self.folder_id = os.getenv('GOOGLE_DRIVE_FOLDER_ID')
         

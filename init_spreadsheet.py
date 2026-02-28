@@ -29,40 +29,55 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-def create_service(scopes=None):
-    """Create Google API service"""
-    if scopes is None:
-        scopes = ['https://www.googleapis.com/auth/spreadsheets']
-        
+REQUIRED_SHEETS = ['data', 'master_shokudo', 'master_user', 'master_quadrant', 'master_color']
+
+def create_credentials():
+    """Create Google API credentials with both Sheets and Drive scopes"""
+    # spreadsheets.create はDriveにファイルを作成するため drive スコープも必要
+    scopes = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive',
+    ]
+
     service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
-    
+
     if not service_account_file:
         print("Error: GOOGLE_SERVICE_ACCOUNT_FILE environment variable not set")
         print("Please set this variable in your .env file")
         sys.exit(1)
-    
+
     if not os.path.exists(service_account_file):
         print(f"Error: Service account file not found at {service_account_file}")
         print("Please check the path and make sure the file exists")
         sys.exit(1)
-    
+
     try:
-        credentials = service_account.Credentials.from_service_account_file(
+        return service_account.Credentials.from_service_account_file(
             service_account_file,
             scopes=scopes
         )
-        
-        if 'spreadsheets' in scopes[0]:
-            service = build('sheets', 'v4', credentials=credentials)
-        elif 'drive' in scopes[0]:
-            service = build('drive', 'v3', credentials=credentials)
-        else:
-            print(f"Error: Unsupported scope: {scopes[0]}")
-            sys.exit(1)
-            
-        return service
     except Exception as e:
-        print(f"Error creating Google API service: {e}")
+        print(f"Error loading service account credentials: {e}")
+        sys.exit(1)
+
+
+def create_service(scopes=None):
+    """Create Google Sheets API service"""
+    credentials = create_credentials()
+    try:
+        return build('sheets', 'v4', credentials=credentials)
+    except Exception as e:
+        print(f"Error creating Google Sheets API service: {e}")
+        sys.exit(1)
+
+
+def create_drive_service():
+    """Create Google Drive API service"""
+    credentials = create_credentials()
+    try:
+        return build('drive', 'v3', credentials=credentials)
+    except Exception as e:
+        print(f"Error creating Google Drive API service: {e}")
         sys.exit(1)
 
 def share_spreadsheet(spreadsheet_id, email):
@@ -70,11 +85,10 @@ def share_spreadsheet(spreadsheet_id, email):
     if not email:
         print("No email provided, skipping sharing")
         return
-        
+
     try:
-        # Create Drive service with appropriate scope
-        drive_service = create_service(['https://www.googleapis.com/auth/drive'])
-        
+        drive_service = create_drive_service()
+
         # Create permission
         permission = {
             'type': 'user',
@@ -96,24 +110,42 @@ def share_spreadsheet(spreadsheet_id, email):
         print("You may need to manually share the spreadsheet.")
 
 def create_spreadsheet(service, email=None, title="こども食堂アンケート"):
-    """Create a new spreadsheet"""
+    """Create a new spreadsheet via Drive API, then add sheets via Sheets API"""
     try:
-        spreadsheet = service.spreadsheets().create(
+        # Drive API でスプレッドシートファイルを作成
+        # (spreadsheets.create は組織ポリシー等で403になる場合があるため Drive API を使用)
+        drive_service = create_drive_service()
+        file = drive_service.files().create(
             body={
-                'properties': {'title': title},
-                'sheets': [
-                    {'properties': {'title': 'data'}},
-                    {'properties': {'title': 'master_shokudo'}},
-                    {'properties': {'title': 'master_user'}},
-                    {'properties': {'title': 'master_quadrant'}},
-                    {'properties': {'title': 'master_color'}}
-                ]
-            }
+                'name': title,
+                'mimeType': 'application/vnd.google-apps.spreadsheet',
+            },
+            fields='id,webViewLink'
         ).execute()
-        
-        spreadsheet_id = spreadsheet['spreadsheetId']
+
+        spreadsheet_id = file['id']
         print(f"Created new spreadsheet with ID: {spreadsheet_id}")
-        print(f"URL: {spreadsheet['spreadsheetUrl']}")
+        print(f"URL: https://docs.google.com/spreadsheets/d/{spreadsheet_id}")
+
+        # Sheets API でシートを追加・リネーム
+        # (Drive API 作成時は "Sheet1" という名前のシートが1枚できる)
+        sheet_names = ['data', 'master_shokudo', 'master_user', 'master_quadrant', 'master_color']
+        requests = [
+            # 既存の Sheet1 を最初のシート名にリネーム
+            {
+                'updateSheetProperties': {
+                    'properties': {'sheetId': 0, 'title': sheet_names[0]},
+                    'fields': 'title'
+                }
+            }
+        ]
+        for name in sheet_names[1:]:
+            requests.append({'addSheet': {'properties': {'title': name}}})
+
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={'requests': requests}
+        ).execute()
         
         # Share the spreadsheet if email is provided
         if email:
@@ -123,6 +155,30 @@ def create_spreadsheet(service, email=None, title="こども食堂アンケー�
     except Exception as e:
         print(f"Error creating spreadsheet: {e}")
         sys.exit(1)
+
+def ensure_sheets_exist(service, spreadsheet_id):
+    """既存スプレッドシートに不足しているシートを作成する"""
+    try:
+        spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        existing_titles = {s['properties']['title'] for s in spreadsheet['sheets']}
+
+        missing = [name for name in REQUIRED_SHEETS if name not in existing_titles]
+
+        if not missing:
+            print("All required sheets already exist.")
+            return
+
+        requests = [{'addSheet': {'properties': {'title': name}}} for name in missing]
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={'requests': requests}
+        ).execute()
+
+        print(f"Created missing sheets: {', '.join(missing)}")
+    except Exception as e:
+        print(f"Error ensuring sheets exist: {e}")
+        sys.exit(1)
+
 
 def setup_headers(service, spreadsheet_id):
     """Set up headers for each sheet"""
@@ -357,6 +413,9 @@ def main():
     else:
         spreadsheet_id = create_spreadsheet(sheets_service, args.email)
     
+    # 不足しているシートを作成してからヘッダーをセットアップ
+    ensure_sheets_exist(sheets_service, spreadsheet_id)
+
     # Set up headers
     setup_headers(sheets_service, spreadsheet_id)
     

@@ -1,11 +1,10 @@
 from googleapiclient.discovery import build
-from google.oauth2 import service_account
 import os
 import datetime
 import uuid
 import logging
-import json
-import base64
+
+from services.google_auth import get_google_credentials
 
 class SheetsService:
     def __init__(self):
@@ -25,30 +24,8 @@ class SheetsService:
         }
 
     def _get_credentials(self):
-        """Get Google credentials from environment variable"""
-        try:
-            # まずBase64エンコードされた認証情報を試す
-            credentials_base64 = os.getenv('GOOGLE_CREDENTIALS_BASE64')
-            if credentials_base64:
-                credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
-                credentials_info = json.loads(credentials_json)
-                return service_account.Credentials.from_service_account_info(
-                    credentials_info,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets']
-                )
-
-            # バックアップとしてファイルパスを試す（ローカル開発用）
-            credentials_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
-            if credentials_file and os.path.exists(credentials_file):
-                return service_account.Credentials.from_service_account_file(
-                    credentials_file,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets']
-                )
-
-            raise ValueError("No valid Google credentials found")
-        except Exception as e:
-            logging.error(f"Error loading credentials: {e}")
-            raise
+        """Get Google credentials"""
+        return get_google_credentials(['https://www.googleapis.com/auth/spreadsheets'])
 
     def get_all_shokudos(self):
         """Get all children's cafeterias"""

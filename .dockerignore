@@ -1,0 +1,47 @@
+# Python キャッシュ
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# 仮想環境
+venv/
+env/
+ENV/
+
+# 環境変数 (シークレット)
+.env
+
+# 認証情報 (Cloud Run では Secret Manager を使う)
+*.json
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# テストファイル
+test_*.py
+generate_test_image.py
+
+# ドキュメント・セットアップスクリプト
+README.md
+setup.sh
+setup.bat
+
+# ログ
+*.log
+
+# 一時ファイル
+tmp/
+temp/
+
+# Vercel
+.vercel
+.vercelignore
