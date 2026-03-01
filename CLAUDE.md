@@ -15,7 +15,7 @@ LINE公式アカウントと連携したLIFFアプリで、こども食堂の参
 | データ保存 | Google Sheets API v4 |
 | 画像保存 | Google Drive API v3 |
 | 画像処理 | OpenCV (headless) / NumPy / Pillow |
-| 認証 | Google Service Account |
+| 認証 | Google OAuth2 (Drive・Sheets共通) |
 | 本番サーバー | Gunicorn |
 | コンテナ | Docker (python:3.9-slim) |
 
@@ -24,14 +24,13 @@ LINE公式アカウントと連携したLIFFアプリで、こども食堂の参
 ```
 kodomo-shokudo-survey/
 ├── app.py                  # Flaskエントリーポイント・全APIルート定義
-├── main.py                 # 起動エントリ (gunicorn用)
 ├── requirements.txt        # pip依存関係
 ├── pyproject.toml          # プロジェクトメタデータ
 ├── Dockerfile              # Cloud Run用コンテナ定義
 ├── .env                    # 環境変数 (gitignore済)
 ├── .env.template           # 環境変数テンプレート
 ├── services/               # サービスレイヤー
-│   ├── google_auth.py      # Google認証共通ヘルパー
+│   ├── google_auth.py      # Google OAuth2認証共通ヘルパー
 │   ├── sheets_service.py   # Google Sheets操作
 │   ├── drive_service.py    # Google Drive操作
 │   ├── image_service.py    # 画像処理 (OpenCV)
@@ -43,9 +42,6 @@ kodomo-shokudo-survey/
 │   ├── js/
 │   ├── css/
 │   └── img/
-├── api/                    # Vercelサーバーレス関数 (旧構成)
-│   ├── index.py
-│   └── old_index.py
 ├── init_spreadsheet.py     # スプレッドシート初期化スクリプト
 ├── init_drive.py           # Google Drive初期化スクリプト
 ├── generate_test_image.py  # テスト画像生成スクリプト
@@ -64,10 +60,10 @@ LINE_CHANNEL_SECRET=
 LINE_CHANNEL_ACCESS_TOKEN=
 LIFF_ID=
 
-# Google API (ローカル開発: ファイルパス)
-GOOGLE_SERVICE_ACCOUNT_FILE=path/to/service_account.json
-# Google API (Cloud Run: JSON文字列をSecret Managerから注入)
-GOOGLE_CREDENTIALS={"type":"service_account",...}
+# Google OAuth2 (Drive・Sheets共通)
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GOOGLE_OAUTH_REFRESH_TOKEN=
 
 # Google リソース
 SPREADSHEET_ID=
@@ -78,9 +74,19 @@ FLASK_ENV=development
 FLASK_DEBUG=1
 ```
 
-### Google認証の優先順位 (`services/google_auth.py`)
-1. `GOOGLE_CREDENTIALS` 環境変数 (JSON文字列) — Cloud Run / Secret Manager用
-2. `GOOGLE_SERVICE_ACCOUNT_FILE` 環境変数 (ファイルパス) — ローカル開発用
+### Google認証について (`services/google_auth.py`)
+- Drive・Sheets ともに OAuth2 ユーザー認証を使用
+- リフレッシュトークンは `get_refresh_token.py` で取得（実行後は削除してよい）
+- スコープ: `drive.file` + `spreadsheets`
+- Cloud Run環境でも同じ環境変数を設定すること（Secret Manager推奨）
+
+### リフレッシュトークンの再取得
+```bash
+# .env に GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET を設定した上で実行
+.venv/bin/python get_refresh_token.py
+# → ブラウザで認証後、GOOGLE_OAUTH_REFRESH_TOKEN を .env に設定
+# → 実行後は get_refresh_token.py を削除
+```
 
 ## Google Sheetsのシート構成
 
@@ -92,6 +98,27 @@ FLASK_DEBUG=1
 | `master_color` | 色の意味設定 (赤/緑/青/黄) |
 | `master_color_list` | 色マスタ |
 | `data` | アンケート集計データ |
+
+### `data` シートの列構成 (A〜N)
+
+| 列 | 項目 | 内容 |
+|---|---|---|
+| A | datetime | 送信日時 |
+| B | event_date | 開催日（ユーザーが選択） |
+| C | userid | LINE ユーザーID |
+| D | display_name | ユーザー表示名 |
+| E | shokudo_id | こども食堂ID |
+| F | shokudo_name | こども食堂名 |
+| G | question | 質問文 |
+| H | quadrant | 象限コード (quadrant_UL 等) |
+| I | answer | 象限ラベル |
+| J | color | 色コード (red 等) |
+| K | attribute | 色の意味 |
+| L | count | シール個数 |
+| M | count_original | シール個数（元値） |
+| N | photo_file_path | Google Drive ファイルID |
+
+※ 0件の組み合わせも全行記録する。
 
 ## APIエンドポイント (`app.py`)
 
@@ -161,28 +188,27 @@ python test_line_webhook.py --message "アンケート" --user_id "test_user_id"
 
 ### Cloud Run (現在の本番環境)
 
+ソースコードから直接デプロイ（推奨）:
 ```bash
-# Dockerイメージをビルドして Cloud Run にデプロイ
-gcloud builds submit --tag gcr.io/PROJECT_ID/kodomo-shokudo-survey
 gcloud run deploy kodomo-shokudo-survey \
-  --image gcr.io/PROJECT_ID/kodomo-shokudo-survey \
-  --platform managed \
+  --source . \
   --region asia-northeast1 \
   --allow-unauthenticated
 ```
+
+環境変数を追加・更新する場合（既存の変数を保持したまま更新）:
+```bash
+gcloud run services update kodomo-shokudo-survey \
+  --region asia-northeast1 \
+  --update-env-vars "KEY=VALUE"
+```
+
+> ⚠️ `--set-env-vars` は既存の全変数を置き換えるため、1つだけ変更したい場合は必ず `--update-env-vars` を使うこと。
 
 Gunicornの設定 (Dockerfile CMD):
 - `--workers 1` — Cloud Runのリソース制限に合わせて1プロセス
 - `--threads 8` — スレッドで並行処理
 - `--timeout 0` — Cloud Runがタイムアウトを管理
-
-### Vercel (旧構成 / 参考)
-
-```bash
-vercel
-```
-
-`api/index.py` がVercelのサーバーレス関数エントリ。現在は Cloud Run を優先使用。
 
 ## 注意事項
 
@@ -191,9 +217,8 @@ vercel
 - pythonコードを実行したい場合は「.venv/bin/python」コマンドを利用してください。
 
 ### セキュリティ
-- `.env` と `*.json` は `.gitignore` で除外済み — **Googleサービスアカウントキーをコミットしない**
-- `kodomo-shokudo-ca5b100e16b5.json` はリポジトリに含まれているが、`.gitignore` の `*.json` ルールが適用されていない場合があるため確認すること
-- Cloud Run本番環境では `GOOGLE_CREDENTIALS` に JSON文字列をSecret Managerで注入する
+- `.env` は `.gitignore` で除外済み — **認証情報をコミットしない**
+- OAuth2認証情報（CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN）はCloud Runの環境変数またはSecret Managerで管理する
 
 ### ブランチ戦略
 - `main` ブランチ: `revise-with-copilot`
