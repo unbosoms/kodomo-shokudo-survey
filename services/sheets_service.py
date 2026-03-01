@@ -349,7 +349,7 @@ class SheetsService:
                         f'quadrant_{quadrant}',  # quadrant
                         quadrant_settings[quadrant_map[quadrant]],  # answer
                         color,  # color
-                        color_settings[color],  # attribute
+                        color_settings[f'color_{color}'],  # attribute
                         count,  # count
                         count,  # count_original
                         file_path  # photo_file_path
