@@ -42,7 +42,10 @@
 
         <!-- Admin Panel -->
         <div id="admin-panel" class="mt-4 d-none">
-            <h2 class="mb-4">設定画面</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">設定画面</h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">トップへ戻る</a>
+            </div>
             
             <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -223,7 +226,6 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="/static/js/debug.js"></script>
     <script src="/static/js/admin.js"></script>  <!-- admin.jsを先に読み込む -->
     <script src="/static/js/liff.js"></script>   <!-- liff.jsを後に読み込む -->
     <script>
