@@ -309,24 +309,25 @@ class SheetsService:
         ).execute()
         return True
     
-    def record_survey(self, user_id, counts, file_path):
+    def record_survey(self, user_id, counts, file_path, event_date=None):
         """Record survey results in spreadsheet"""
         user_info = self.get_user_info(user_id)
         if not user_info or not user_info['shokudo_id']:
             return False
-            
+
         shokudo_id = user_info['shokudo_id']
         shokudo_info = self.get_shokudo_info(shokudo_id)
         quadrant_settings = self.get_quadrant_settings(shokudo_id)
         color_settings = self.get_color_settings(shokudo_id)
-        
+
         if not shokudo_info or not quadrant_settings or not color_settings:
             return False
-        
+
         # Create data rows
         rows = []
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
+        event_date_value = event_date if event_date else now[:10]
+
         # Map quadrant codes to settings field names
         quadrant_map = {
             'UL': 'quadrant_ul',
@@ -334,30 +335,31 @@ class SheetsService:
             'LL': 'quadrant_ll',
             'LR': 'quadrant_lr'
         }
-        
+
         # For each quadrant and color combination with count > 0, add a row
         for quadrant, colors in counts.items():
             for color, count in colors.items():
                 if count > 0:
                     rows.append([
-                        now,  # datetime
-                        user_id,  # userid
-                        user_info['display_name'],  # display_name
-                        shokudo_id,  # shokudo_id
-                        shokudo_info['shokudo_name'],  # shokudo_name
-                        quadrant_settings['question'],  # question
-                        f'quadrant_{quadrant}',  # quadrant
-                        quadrant_settings[quadrant_map[quadrant]],  # answer
-                        color,  # color
-                        color_settings[f'color_{color}'],  # attribute
-                        count,  # count
-                        count,  # count_original
-                        file_path  # photo_file_path
+                        now,               # A: datetime（送信日時）
+                        event_date_value,  # B: event_date（開催日）
+                        user_id,           # C: userid
+                        user_info['display_name'],  # D: display_name
+                        shokudo_id,        # E: shokudo_id
+                        shokudo_info['shokudo_name'],  # F: shokudo_name
+                        quadrant_settings['question'],  # G: question
+                        f'quadrant_{quadrant}',  # H: quadrant
+                        quadrant_settings[quadrant_map[quadrant]],  # I: answer
+                        color,             # J: color
+                        color_settings[f'color_{color}'],  # K: attribute
+                        count,             # L: count
+                        count,             # M: count_original
+                        file_path          # N: photo_file_path
                     ])
-        
+
         # Add rows to spreadsheet
         if rows:
-            range_name = 'data!A:M'
+            range_name = 'data!A:N'
             body = {
                 'values': rows
             }
@@ -367,7 +369,7 @@ class SheetsService:
                 valueInputOption='RAW',
                 body=body
             ).execute()
-            
+
             return True
-        
+
         return False

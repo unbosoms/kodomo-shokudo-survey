@@ -222,6 +222,7 @@ function uploadPhoto() {
         formData.append('image', blob, 'photo.jpg');
         formData.append('shokudoId', currentShokudo.shokudo_id);
         formData.append('userId', currentUser.user_id);
+        formData.append('eventDate', document.getElementById('event-date').value);
 
         // アップロード実行
         uploadWithRetry('/api/upload', formData, 3);
@@ -469,4 +470,18 @@ function resizeImage(dataURL, maxWidth, maxHeight, callback) {
  */
 window.addEventListener('beforeunload', function() {
     stopCamera();
+});
+
+/**
+ * 開催日入力欄に今日の日付をデフォルト設定
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('event-date');
+    if (dateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
 });

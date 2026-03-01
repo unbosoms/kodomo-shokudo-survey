@@ -64,6 +64,7 @@ def upload_image():
     
     user_id = request.form.get('userId')
     shokudo_id = request.form.get('shokudoId')
+    event_date = request.form.get('eventDate')
     image_file = request.files.get('image')
     
     if not user_id or not image_file:
@@ -107,7 +108,7 @@ def upload_image():
         # Record in Google Sheets
         try:
             logger.info("Recording in Google Sheets...")
-            sheets_service.record_survey(user_id, counts, file_path)
+            sheets_service.record_survey(user_id, counts, file_path, event_date)
             logger.info("Recorded in Google Sheets successfully")
         except Exception as e:
             logger.error(f"Error recording in Google Sheets: {e}")
