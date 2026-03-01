@@ -117,8 +117,14 @@ def upload_image():
         # Send LINE notification
         try:
             logger.info("Sending LINE notification...")
+            user_info = sheets_service.get_user_info(user_id)
+            quadrant_settings = None
+            color_settings = None
+            if user_info and user_info.get('shokudo_id'):
+                quadrant_settings = sheets_service.get_quadrant_settings(user_info['shokudo_id'])
+                color_settings = sheets_service.get_color_settings(user_info['shokudo_id'])
             user_profile = line_service.get_profile(user_id)
-            line_service.send_survey_result(user_id, counts, user_profile)
+            line_service.send_survey_result(user_id, counts, user_profile, quadrant_settings, color_settings, event_date)
             logger.info("LINE notification sent successfully")
         except Exception as e:
             logger.error(f"Error sending LINE notification: {e}")

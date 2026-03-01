@@ -81,36 +81,36 @@ class LineService:
         """Get user profile from LINE"""
         return self.line_bot_api.get_profile(user_id)
     
-    def send_survey_result(self, user_id, counts, user_profile):
+    def send_survey_result(self, user_id, counts, user_profile, quadrant_settings=None, color_settings=None, event_date=None):
         """Send survey results via LINE message"""
-        # Format results
-        message = "アンケート集計結果\n\n"
-        
+        # 象限ラベル（設定値があれば使用、なければ位置名をフォールバック）
         quadrant_names = {
-            'UL': '左上',
-            'UR': '右上',
-            'LL': '左下',
-            'LR': '右下'
+            'UL': (quadrant_settings or {}).get('quadrant_ul', '左上'),
+            'UR': (quadrant_settings or {}).get('quadrant_ur', '右上'),
+            'LL': (quadrant_settings or {}).get('quadrant_ll', '左下'),
+            'LR': (quadrant_settings or {}).get('quadrant_lr', '右下'),
         }
-        
+
+        # 色ラベル（設定値があれば使用、なければ色名をフォールバック）
         color_names = {
-            'red': '赤',
-            'green': '緑',
-            'blue': '青',
-            'yellow': '黄'
+            'red':    (color_settings or {}).get('color_red',    '赤'),
+            'green':  (color_settings or {}).get('color_green',  '緑'),
+            'blue':   (color_settings or {}).get('color_blue',   '青'),
+            'yellow': (color_settings or {}).get('color_yellow', '黄'),
         }
-        
-        # Count totals by quadrant and color
+
+        date_line = f"📅 開催日：{event_date}\n\n" if event_date else ""
+        message = f"🌟 アンケート集計結果 🌟\n\n{date_line}"
+
         for quadrant, colors in counts.items():
             message += f"【{quadrant_names[quadrant]}】\n"
-            
             for color, count in colors.items():
                 if count > 0:
                     message += f"・{color_names[color]}: {count}個\n"
-            
             message += "\n"
-        
-        # Send message
+
+        message += "今日もこども食堂の運営、お疲れさまでした！\n子どもたちの笑顔のために、ありがとうございます 😊"
+
         self.line_bot_api.push_message(
             user_id,
             TextSendMessage(text=message)
