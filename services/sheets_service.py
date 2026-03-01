@@ -336,11 +336,10 @@ class SheetsService:
             'LR': 'quadrant_lr'
         }
 
-        # For each quadrant and color combination with count > 0, add a row
+        # For each quadrant and color combination, add a row
         for quadrant, colors in counts.items():
             for color, count in colors.items():
-                if count > 0:
-                    rows.append([
+                rows.append([
                         now,               # A: datetime（送信日時）
                         event_date_value,  # B: event_date（開催日）
                         user_id,           # C: userid

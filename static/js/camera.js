@@ -370,23 +370,25 @@ function showResults(counts) {
     for (const quadrant in counts) {
         for (const color in counts[quadrant]) {
             const count = counts[quadrant][color];
-            if (count > 0) {
-                html += `<tr>
-                    <td>${quadrantTexts[quadrant]}</td>
-                    <td>${colorTexts[color]}</td>
-                    <td>${count}</td>
-                </tr>`;
-            }
+            html += `<tr>
+                <td>${quadrantTexts[quadrant]}</td>
+                <td>${colorTexts[color]}</td>
+                <td>${count}</td>
+            </tr>`;
         }
     }
-    
+
     html += '</tbody></table>';
-    
+
     // Set result HTML
     resultContent.innerHTML = html;
-    
+
     // Show result container
     resultContainer.classList.remove('d-none');
+
+    // 開催日入力欄をロック
+    const dateInput = document.getElementById('event-date');
+    if (dateInput) dateInput.disabled = true;
 }
 
 /**
