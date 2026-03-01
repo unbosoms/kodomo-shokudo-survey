@@ -1,23 +1,34 @@
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaInMemoryUpload, MediaIoBaseUpload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
 from googleapiclient.errors import HttpError
+from google.oauth2.credentials import Credentials
 import os
 import io
 import base64
 import logging
+import tempfile
 import time
 import socket
 import httplib2
 
-from services.google_auth import get_google_credentials
-
 # Configure logging
 logger = logging.getLogger(__name__)
+
+def _get_oauth2_credentials():
+    """OAuth2ユーザー認証情報を返す"""
+    return Credentials(
+        token=None,
+        refresh_token=os.getenv('GOOGLE_OAUTH_REFRESH_TOKEN'),
+        client_id=os.getenv('GOOGLE_OAUTH_CLIENT_ID'),
+        client_secret=os.getenv('GOOGLE_OAUTH_CLIENT_SECRET'),
+        token_uri='https://oauth2.googleapis.com/token',
+        scopes=['https://www.googleapis.com/auth/drive.file']
+    )
 
 class DriveService:
     def __init__(self):
         """Initialize Google Drive API client"""
-        credentials = get_google_credentials(['https://www.googleapis.com/auth/drive'])
+        credentials = _get_oauth2_credentials()
         self.service = build('drive', 'v3', credentials=credentials)
         self.folder_id = os.getenv('GOOGLE_DRIVE_FOLDER_ID')
         
@@ -66,89 +77,89 @@ class DriveService:
             'name': filename,
             'parents': [self.folder_id]
         }
-        
-        # Create media upload
-        media = MediaInMemoryUpload(
-            image_bytes,
-            mimetype='image/jpeg',
-            resumable=True
-        )
-        
-        # Upload file with retry logic
-        retry_count = 0
-        last_exception = None
-        
-        while retry_count < max_retries:
-            try:
-                logger.info(f"Uploading file to Google Drive (attempt {retry_count + 1}/{max_retries})")
-                
-                # Upload file
-                file = self.service.files().create(
-                    body=file_metadata,
-                    media_body=media,
-                    fields='id,webViewLink'
-                ).execute()
-                
-                elapsed_time = time.time() - start_time
-                logger.info(f"Upload successful in {elapsed_time:.2f} seconds")
-                
-                # Return the web view link
-                return file.get('webViewLink')
-                
-            except HttpError as e:
-                last_exception = e
-                status_code = e.resp.status
-                logger.warning(f"HTTP error during upload (status {status_code}): {e}")
-                
-                # Only retry on certain status codes
-                if status_code in [429, 500, 502, 503, 504]:
+
+        # 一時ファイルに書き出してから MediaFileUpload でアップロード
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+                tmp.write(image_bytes)
+                tmp_path = tmp.name
+            logger.info(f"Wrote image to temp file: {tmp_path}")
+
+            media = MediaFileUpload(tmp_path, mimetype='image/jpeg', resumable=False)
+
+            # Upload file with retry logic
+            retry_count = 0
+            last_exception = None
+
+            while retry_count < max_retries:
+                try:
+                    logger.info(f"Uploading file to Google Drive (attempt {retry_count + 1}/{max_retries})")
+
+                    file = self.service.files().create(
+                        body=file_metadata,
+                        media_body=media,
+                        fields='id'
+                    ).execute()
+
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"Upload successful in {elapsed_time:.2f} seconds")
+                    return file.get('id')
+
+                except HttpError as e:
+                    last_exception = e
+                    status_code = e.resp.status
+                    logger.warning(f"HTTP error during upload (status {status_code}): {e}")
+
+                    if status_code in [429, 500, 502, 503, 504]:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            wait_time = min(2 ** retry_count, 60)
+                            logger.info(f"Retrying in {wait_time} seconds...")
+                            time.sleep(wait_time)
+                        else:
+                            logger.error("Max retries reached. Upload failed.")
+                            raise
+                    else:
+                        logger.error(f"Non-retryable HTTP error: {e}")
+                        raise
+
+                except socket.timeout as e:
+                    last_exception = e
+                    logger.warning(f"Socket timeout during upload: {e}")
                     retry_count += 1
                     if retry_count < max_retries:
-                        # Exponential backoff
                         wait_time = min(2 ** retry_count, 60)
                         logger.info(f"Retrying in {wait_time} seconds...")
                         time.sleep(wait_time)
                     else:
-                        logger.error(f"Max retries reached. Upload failed.")
+                        logger.error("Max retries reached. Upload failed.")
+                        raise ValueError(f"Connection timeout after {max_retries} attempts: {str(e)}")
+
+                except Exception as e:
+                    last_exception = e
+                    logger.warning(f"Unexpected error during upload: {e}")
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        wait_time = min(2 ** retry_count, 60)
+                        logger.info(f"Retrying in {wait_time} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        logger.error("Max retries reached. Upload failed.")
                         raise
-                else:
-                    # Don't retry on client errors
-                    logger.error(f"Non-retryable HTTP error: {e}")
-                    raise
-                    
-            except socket.timeout as e:
-                last_exception = e
-                logger.warning(f"Socket timeout during upload: {e}")
-                retry_count += 1
-                if retry_count < max_retries:
-                    # Exponential backoff
-                    wait_time = min(2 ** retry_count, 60)
-                    logger.info(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"Max retries reached. Upload failed.")
-                    raise ValueError(f"Connection timeout after {max_retries} attempts: {str(e)}")
-                    
-            except Exception as e:
-                last_exception = e
-                logger.warning(f"Unexpected error during upload: {e}")
-                retry_count += 1
-                if retry_count < max_retries:
-                    # Exponential backoff
-                    wait_time = min(2 ** retry_count, 60)
-                    logger.info(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"Max retries reached. Upload failed.")
-                    raise
-        
-        # If we get here, all retries failed
-        elapsed_time = time.time() - start_time
-        logger.error(f"Upload failed after {elapsed_time:.2f} seconds and {max_retries} attempts")
-        if last_exception:
-            raise last_exception
-        else:
+
+            # If we get here, all retries failed
+            elapsed_time = time.time() - start_time
+            logger.error(f"Upload failed after {elapsed_time:.2f} seconds and {max_retries} attempts")
+            if last_exception:
+                raise last_exception
             raise RuntimeError("Upload failed for unknown reason")
+
+        finally:
+            # 一時ファイルを必ず削除
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
+                logger.info(f"Deleted temp file: {tmp_path}")
     
     def upload_file_from_path(self, file_path, filename=None, max_retries=3):
         """Upload a file from disk to Google Drive

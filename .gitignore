@@ -30,6 +30,7 @@ env/
 
 # Google API credentials
 *.json
+get_refresh_token.py
 
 # IDE files
 .idea/
