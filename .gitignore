@@ -32,6 +32,9 @@ env/
 *.json
 get_refresh_token.py
 
+# Claude Code local files
+.claude/
+
 # IDE files
 .idea/
 .vscode/
