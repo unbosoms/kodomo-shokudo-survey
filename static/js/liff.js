@@ -164,13 +164,26 @@ function checkUserRegistration(profile) {
                         console.error('liff.js: initAdminPanel function not found');
                         showError('管理画面の初期化に失敗しました: initAdminPanel関数が見つかりません');
                     }
+                } else if (window.location.pathname.startsWith('/results')) {
+                    if (typeof initResultsPage === 'function') {
+                        console.info('liff.js: Calling initResultsPage');
+                        initResultsPage(data.user, data.shokudo);
+                    } else {
+                        console.error('liff.js: initResultsPage function not found');
+                        showError('集計結果ページの初期化に失敗しました');
+                    }
                 } else {
                     initializeMainApp(data.user, data.shokudo);
                 }
             } else {
-                // User is not registered, show registration form
-                console.info('liff.js: User is not registered, showing registration form');
-                showRegistrationForm();
+                // User is not registered
+                console.info('liff.js: User is not registered');
+                if (window.location.pathname.startsWith('/results')) {
+                    // 未登録ユーザーはトップページへ
+                    window.location.href = '/';
+                } else {
+                    showRegistrationForm();
+                }
             }
         } else {
             console.error('liff.js: Failed to check user registration:', data.error);

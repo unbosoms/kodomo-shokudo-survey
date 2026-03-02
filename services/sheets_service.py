@@ -371,4 +371,73 @@ class SheetsService:
 
             return True
 
+    def get_survey_results(self, shokudo_id):
+        """食堂の集計結果を取得し、開催日+質問でグループ化して返す
+
+        data シートの列構成:
+          A(0): datetime, B(1): event_date, C(2): userid, D(3): display_name,
+          E(4): shokudo_id, F(5): shokudo_name, G(6): question,
+          H(7): quadrant, I(8): answer, J(9): color, K(10): attribute,
+          L(11): count, M(12): count_original, N(13): photo_file_path
+
+        Returns:
+            list: event_date 降順のグループリスト
+        """
+        result = self.service.spreadsheets().values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range='data!A2:N'
+        ).execute()
+        rows = result.get('values', [])
+
+        # shokudo_id でフィルタ（E列 = index 4）
+        rows = [r for r in rows if len(r) > 4 and r[4] == shokudo_id]
+
+        # (event_date, question) でグループ化して count を合算
+        groups = {}
+        color_order = ['red', 'green', 'blue', 'yellow']
+
+        for row in rows:
+            if len(row) < 12:
+                continue
+            event_date = row[1] if len(row) > 1 else ''
+            question   = row[6] if len(row) > 6 else ''
+            answer     = row[8] if len(row) > 8 else ''
+            color      = row[9] if len(row) > 9 else ''
+            attribute  = row[10] if len(row) > 10 else ''
+            try:
+                count = int(row[11])
+            except (ValueError, IndexError):
+                count = 0
+
+            key = (event_date, question)
+            if key not in groups:
+                groups[key] = {
+                    'event_date': event_date,
+                    'question': question,
+                    'answers': [],
+                    'colors': [],
+                    'table': {}
+                }
+            g = groups[key]
+
+            if answer and answer not in g['answers']:
+                g['answers'].append(answer)
+
+            if color and not any(c['code'] == color for c in g['colors']):
+                g['colors'].append({'code': color, 'attribute': attribute})
+
+            if answer not in g['table']:
+                g['table'][answer] = {}
+            g['table'][answer][color] = g['table'][answer].get(color, 0) + count
+
+        # 色を固定順（red/green/blue/yellow）にソート
+        for g in groups.values():
+            g['colors'].sort(
+                key=lambda c: color_order.index(c['code'])
+                if c['code'] in color_order else 99
+            )
+
+        # event_date 降順でソート
+        return sorted(groups.values(), key=lambda g: g['event_date'], reverse=True)
+
         return False

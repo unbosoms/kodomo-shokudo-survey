@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>過去の集計 - こども食堂アンケート</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading spinner -->
+        <div id="loading" class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div id="results-app" class="mt-4 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">過去の集計</h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">撮影画面に戻る</a>
+            </div>
+
+            <div id="shokudo-header" class="mb-3 text-muted small"></div>
+
+            <!-- 集計カード一覧 -->
+            <div id="results-container"></div>
+
+            <!-- データなし -->
+            <div id="no-results" class="d-none">
+                <div class="card">
+                    <div class="card-body text-center text-muted py-5">
+                        まだ集計データがありません。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- App JS -->
+    <script src="/static/js/liff.js"></script>
+    <script src="/static/js/results.js"></script>
+
+    <!-- Pass LIFF ID to JavaScript -->
+    <script>
+        const liffId = "{{ liff_id }}";
+    </script>
+</body>
+</html>

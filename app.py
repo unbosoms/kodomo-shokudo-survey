@@ -329,5 +329,23 @@ def survey_template():
     """Serve the survey template HTML page"""
     return send_from_directory('static/img', 'survey_template.html')
 
+@app.route('/results')
+def results_page():
+    """集計結果閲覧ページ"""
+    return render_template('results.html', liff_id=liff_id)
+
+@app.route('/api/get-results', methods=['GET'])
+def get_results():
+    """食堂の集計結果を取得"""
+    shokudo_id = request.args.get('shokudoId')
+    if not shokudo_id:
+        return jsonify({'success': False, 'error': 'Missing shokudoId'}), 400
+    try:
+        results = sheets_service.get_survey_results(shokudo_id)
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        logger.error(f'get_results error: {e}')
+        return jsonify({'success': False, 'error': 'データの取得に失敗しました'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
