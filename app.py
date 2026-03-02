@@ -332,7 +332,7 @@ def survey_template():
 @app.route('/results')
 def results_page():
     """集計結果閲覧ページ"""
-    return render_template('results.html', liff_id=liff_id)
+    return render_template('results.html', liff_id=os.getenv('LIFF_ID'))
 
 @app.route('/api/get-results', methods=['GET'])
 def get_results():
