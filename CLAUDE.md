@@ -37,9 +37,14 @@ kodomo-shokudo-survey/
 │   └── line_service.py     # LINE Messaging API
 ├── templates/              # Jinja2 HTMLテンプレート
 │   ├── index.html          # LIFF メインページ
-│   └── admin.html          # 管理画面
+│   ├── admin.html          # 管理画面（設定変更）
+│   └── results.html        # 集計結果閲覧ページ
 ├── static/                 # 静的ファイル
 │   ├── js/
+│   │   ├── liff.js         # LIFF初期化・認証・ページ振り分け
+│   │   ├── camera.js       # カメラ撮影UI
+│   │   ├── app.js          # メインアプリロジック
+│   │   └── results.js      # 集計結果ページロジック
 │   ├── css/
 │   └── img/
 ├── init_spreadsheet.py     # スプレッドシート初期化スクリプト
@@ -137,6 +142,8 @@ FLASK_DEBUG=1
 | GET | `/api/get-settings` | 食堂の設定取得 |
 | GET | `/api/guide-overlay` | カメラガイドオーバーレイ画像生成 |
 | GET | `/survey-template` | アンケート用紙テンプレート |
+| GET | `/results` | 集計結果閲覧ページ |
+| GET | `/api/get-results` | 食堂の集計結果取得（開催日+質問でグループ化） |
 
 ## ローカル開発
 
@@ -243,19 +250,33 @@ Gunicornの設定 (Dockerfile CMD):
 
 | 優先度 | 機能 | 概要 |
 |---|---|---|
-| 🔴 高 | 集計結果の閲覧機能 | 過去の集計データを日付・食堂ごとに絞り込んで表示する画面を追加。`data` シートから読み取りAPIを実装し、管理画面またはLIFFから参照できるようにする |
 | 🟡 中 | 管理画面の認証 | 管理画面・管理APIにLINEユーザー認証またはパスワード認証を追加（セキュリティ課題対応） |
 | 🟡 中 | CI/CD整備 | GitHub ActionsでCloud Runへの自動デプロイを構築する |
 | 🟢 低 | XSS対策 | `admin.js` の `innerHTML` をテキストノード挿入に置き換える |
 | 🟢 低 | エラーメッセージ改善 | 本番環境で `str(e)` を直接返さず、汎用メッセージに置き換える |
-| 🔴 高 | スマホ横画面対応 | スマホでカメラを起動して横画面にすると表示が崩れる問題を修正する |
 
-### 集計結果の閲覧機能（詳細メモ）
+## 実装済み機能メモ
 
-- **必要なAPIエンドポイント**: `GET /api/get-results?shokudoId=xxx&eventDate=yyy`
-- **データソース**: `data` シート（A〜N列）
-- **表示内容案**: 開催日ごとの象限×色のクロス集計表、投稿件数の推移グラフ
-- **表示場所案**: 管理画面 (`/admin`) に「過去の集計」タブを追加、または専用ページ (`/results`) を作成
+### カメラUI (`static/js/camera.js`, `static/css/style.css`)
+- プレビューエリアは `.camera-aspect-wrapper` で横長（4:3）固定
+- `getUserMedia` に `aspectRatio: { ideal: 4/3 }` を指定（Android向け横長ストリームのヒント）
+- `object-fit: cover` で縦長ストリームも横長コンテナに収める
+- 撮影時は表示領域（object-fit: cover のクロップ）に合わせてキャプチャするため余白が少ない
+- ガイドオーバーレイはクライアントサイドで生成（緑枠・赤十字・日本語象限ラベル・案内文）
+
+### 集計結果閲覧機能 (`/results`)
+- トップページの設定カード下「過去の集計を見る」ボタンからアクセス
+- LIFF認証済み・登録済みユーザーのみ閲覧可（未登録ユーザーはトップへリダイレクト）
+- 開催日＋質問文でグループ化し、新しい順に一覧表示
+- クロス集計表（象限ラベルが行、色属性が列、合計行・合計列付き）
+- **記録時点の `answer`/`attribute` 列を使用**するため、設定変更後も過去データを正確に表示
+- データ取得: `SheetsService.get_survey_results(shokudo_id)` → `data!A2:N` を読み取り
+
+### ページ間ナビゲーション
+- トップページ → 設定変更（`/admin`）: 設定状況カードの「設定変更」ボタン
+- トップページ → 集計結果（`/results`）: 設定カード下「過去の集計を見る」ボタン
+- 管理画面 → トップ: 「撮影画面に戻る」リンク
+- 集計結果 → トップ: 「撮影画面に戻る」リンク
 
 ## 注意事項
 
