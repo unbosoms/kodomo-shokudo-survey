@@ -36,15 +36,18 @@
 
         <!-- Main App -->
         <div id="main-app" class="mt-4 d-none">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="mb-4">
                 <h2 class="mb-0">こども食堂アンケート</h2>
-                <a href="/admin" class="btn btn-outline-secondary btn-sm">管理画面</a>
             </div>
             
             <div class="mb-3">
                 <div class="card">
-                    <div class="card-header">
-                        <span id="shokudo-name"></span>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small opacity-75">設定状況</div>
+                            <span id="shokudo-name"></span>
+                        </div>
+                        <a href="/admin" class="btn btn-outline-light btn-sm">設定変更</a>
                     </div>
                     <div class="card-body">
                         <h5 class="card-title" id="question-text"></h5>
