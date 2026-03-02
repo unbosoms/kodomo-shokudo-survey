@@ -34,25 +34,48 @@ h3 {
 
 /* Camera Styles */
 .camera-container {
-    position: relative;
     border: 1px solid #ddd;
     border-radius: 0.25rem;
     overflow: hidden;
 }
 
-#camera {
+/* 横長固定コンテナ（4:3）スマホ縦持ちでも横長プレビューを表示 */
+.camera-aspect-wrapper {
+    position: relative;
     width: 100%;
-    max-height: 70vh;
-    background-color: #000;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: #000;
 }
 
-#guide-overlay {
+.camera-aspect-wrapper #camera {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.camera-aspect-wrapper #canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.camera-aspect-wrapper #guide-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
+}
+
+#camera {
+    background-color: #000;
 }
 
 /* Card Styles */

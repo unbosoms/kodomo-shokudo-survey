@@ -92,13 +92,13 @@
             </div>
 
             <div class="camera-container mb-3">
-                <div class="position-relative">
+                <div class="camera-aspect-wrapper">
                     <!-- カメラプレビュー -->
-                    <video id="camera" class="w-100 d-none" autoplay playsinline></video>
+                    <video id="camera" class="d-none" autoplay playsinline></video>
                     <!-- ガイドオーバーレイ -->
-                    <img id="guide-overlay" class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events: none;">
+                    <img id="guide-overlay" style="display: none; pointer-events: none;">
                     <!-- 撮影プレビュー -->
-                    <canvas id="canvas" class="w-100 d-none"></canvas>
+                    <canvas id="canvas" class="d-none"></canvas>
                 </div>
                 
                 <div class="mt-2 d-flex justify-content-between">

@@ -25,12 +25,13 @@ function initCamera() {
     }
     
     // Request camera access
-    navigator.mediaDevices.getUserMedia({ 
-        video: { 
+    navigator.mediaDevices.getUserMedia({
+        video: {
             facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        } 
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            aspectRatio: { ideal: 4/3 }
+        }
     })
     .then(function(s) {
         stream = s;
@@ -68,74 +69,65 @@ function initCamera() {
 }
 
 /**
- * Load guide overlay
+ * Load guide overlay (クライアントサイドで生成)
  */
 function loadGuideOverlay() {
-    // Get video dimensions
-    const width = videoElement.videoWidth;
-    const height = videoElement.videoHeight;
-    
+    const wrapper = document.querySelector('.camera-aspect-wrapper');
+    const width = wrapper.clientWidth;
+    const height = wrapper.clientHeight;
+
     if (!width || !height) {
-        // Video not ready yet, try again later
         setTimeout(loadGuideOverlay, 100);
         return;
     }
-    
-    // Request guide overlay from server
-    fetch(`/api/guide-overlay?width=${width}&height=${height}`)
-        .then(response => response.blob())
-        .then(blob => {
-            // Create object URL
-            const url = URL.createObjectURL(blob);
-            
-            // Set as guide overlay source
-            guideOverlayElement.src = url;
-            guideOverlayElement.style.display = 'block';
-        })
-        .catch(error => {
-            console.error('Failed to load guide overlay:', error);
-            // Draw guide lines directly on canvas as fallback
-            drawGuideLines(width, height);
-        });
+
+    drawGuideLines(width, height);
 }
 
 /**
- * Draw guide lines directly on canvas (fallback)
+ * Draw guide lines on overlay
  */
 function drawGuideLines(width, height) {
-    // Create a canvas for the overlay
     const overlayCanvas = document.createElement('canvas');
     overlayCanvas.width = width;
     overlayCanvas.height = height;
     const ctx = overlayCanvas.getContext('2d');
-    
-    // Draw horizontal line
+    const midX = width / 2;
+    const midY = height / 2;
+    const margin = 8;
+
+    // 外枠ガイド（緑）: 台紙をこの枠に合わせる
+    ctx.strokeStyle = 'rgba(0, 200, 0, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(margin, margin, width - margin * 2, height - margin * 2);
+
+    // 十字線（赤）: 4象限の境界
     ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, height / 2);
-    ctx.lineTo(width, height / 2);
+    ctx.moveTo(margin, midY);
+    ctx.lineTo(width - margin, midY);
     ctx.stroke();
-    
-    // Draw vertical line
     ctx.beginPath();
-    ctx.moveTo(width / 2, 0);
-    ctx.lineTo(width / 2, height);
+    ctx.moveTo(midX, margin);
+    ctx.lineTo(midX, height - margin);
     ctx.stroke();
-    
-    // Add labels
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-    ctx.font = '20px Arial';
-    ctx.fillText('左上', 10, height / 2 - 10);
-    ctx.fillText('右上', width / 2 + 10, height / 2 - 10);
-    ctx.fillText('左下', 10, height - 10);
-    ctx.fillText('右下', width / 2 + 10, height - 10);
-    
-    // Convert to data URL
-    const dataURL = overlayCanvas.toDataURL('image/png');
-    
-    // Set as guide overlay source
-    guideOverlayElement.src = dataURL;
+
+    // 象限ラベル（日本語）
+    ctx.fillStyle = 'rgba(255, 50, 50, 0.95)';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('左上', margin + 6, midY - 8);
+    ctx.fillText('右上', midX + 8, midY - 8);
+    ctx.fillText('左下', margin + 6, height - margin - 8);
+    ctx.fillText('右下', midX + 8, height - margin - 8);
+
+    // 案内文（緑）
+    ctx.fillStyle = 'rgba(0, 180, 0, 0.9)';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('台紙をこの枠に合わせてください', midX, margin + 18);
+
+    guideOverlayElement.src = overlayCanvas.toDataURL('image/png');
     guideOverlayElement.style.display = 'block';
 }
 
@@ -144,28 +136,44 @@ function drawGuideLines(width, height) {
  */
 function takePhoto() {
     console.info('camera.js: takePhoto button clicked');
-    // キャンバスの設定
+
+    // object-fit: cover の表示領域に合わせてクロップ
+    const wrapper = document.querySelector('.camera-aspect-wrapper');
+    const containerW = wrapper.clientWidth;
+    const containerH = wrapper.clientHeight;
+    const videoW = videoElement.videoWidth;
+    const videoH = videoElement.videoHeight;
+
+    const scaleX = containerW / videoW;
+    const scaleY = containerH / videoH;
+    const scale = Math.max(scaleX, scaleY);
+
+    const visibleW = containerW / scale;
+    const visibleH = containerH / scale;
+    const offsetX = (videoW - visibleW) / 2;
+    const offsetY = (videoH - visibleH) / 2;
+
+    canvasElement.width = Math.round(visibleW);
+    canvasElement.height = Math.round(visibleH);
+
     const context = canvasElement.getContext('2d');
-    canvasElement.width = videoElement.videoWidth;
-    canvasElement.height = videoElement.videoHeight;
-    
-    // 写真を撮影：videoElementの内容をcanvasに描画
-    context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-    
+    context.drawImage(videoElement, offsetX, offsetY, visibleW, visibleH,
+                      0, 0, canvasElement.width, canvasElement.height);
+
     // UI更新：表示の切り替え
-    videoElement.classList.add('d-none');         // カメラプレビューを非表示
-    guideOverlayElement.classList.add('d-none');  // ガイドを非表示
-    canvasElement.classList.remove('d-none');     // 撮影プレビューを表示
-    
+    videoElement.classList.add('d-none');
+    guideOverlayElement.style.display = 'none';
+    canvasElement.classList.remove('d-none');
+
     // ボタンの表示を切り替え
     const takePhotoButton = document.getElementById('take-photo');
     const retakePhotoButton = document.getElementById('retake-photo');
     const uploadPhotoButton = document.getElementById('upload-photo');
-    
+
     takePhotoButton.classList.add('d-none');
     retakePhotoButton.classList.remove('d-none');
     uploadPhotoButton.classList.remove('d-none');
-    
+
     // 写真データを保存：画質0.8で圧縮
     photoData = canvasElement.toDataURL('image/jpeg', 0.8);
 }
@@ -177,12 +185,13 @@ function retakePhoto() {
     // プレビューを非表示にしてビデオを表示
     canvasElement.classList.add('d-none');
     videoElement.classList.remove('d-none');
-    
+    guideOverlayElement.style.display = 'block';
+
     // ボタンの表示を切り替え
     document.getElementById('take-photo').classList.remove('d-none');
     document.getElementById('retake-photo').classList.add('d-none');
     document.getElementById('upload-photo').classList.add('d-none');
-    
+
     // 写真データをクリア
     photoData = null;
 }
@@ -210,8 +219,8 @@ function uploadPhoto() {
         loading.classList.remove('d-none');
     }
 
-    // 画像をリサイズ
-    resizeImage(photoData, 1280, 720, function(resizedImageData) {
+    // 画像をリサイズ（横長4:3を維持）
+    resizeImage(photoData, 1600, 1200, function(resizedImageData) {
         console.info('Image resized for upload. Original size vs. New size (bytes):', 
                     photoData.length, resizedImageData.length);
         
